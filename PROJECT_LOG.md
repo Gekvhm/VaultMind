@@ -112,7 +112,12 @@ Modified files: [cli.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/cli.py)
 Motivation: Порт 8000 зайнятий іншою локальною RAG-системою, що призводило до конфліктів у користувача.
 Description: Змінено порт за замовчуванням для команди `serve` в `cli.py` на 8001.
 
-## Session Closure Summary [2026-06-27 15:55]
+[2026-06-27 15:56:00] {System-Analyst} - Перекомпіляція ярлика для порту 8001
+Modified files: None (Desktop shortcut recompiled)
+Motivation: Конфлікт портів (порт 8000 зайнятий). Ярлик на Робочому столі перекомпільовано для відкриття адреси localhost:8001.
+Description: За допомогою `osacompile` оновлено застосунок `Local NotebookLM.app` для відкриття адреси `http://localhost:8001`.
+
+## Session Closure Summary [2026-06-27 15:56]
 
 ### Completed
 - **Розширення inference.py для хмарних моделей** — Додано підтримку універсального клієнта OpenAI API для динамічного підключення DeepSeek V4 та інших хмарних провайдерів.
