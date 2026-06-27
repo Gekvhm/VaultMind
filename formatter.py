@@ -113,11 +113,11 @@ class KnowledgeFormatter:
                 if ".archive" in root or ".git" in root or ".venv" in root:
                     continue
                 for file in files:
-                    if file.endswith((".txt", ".md")):
+                    if file.endswith((".txt", ".md", ".docx")):
                         files_to_process.append(os.path.join(root, file))
                         
         if not files_to_process:
-            print("Не знайдено сирих текстових файлів (.txt чи .md) для обробки.")
+            print("Не знайдено сирих текстових або документних файлів (.txt, .md чи .docx) для обробки.")
             return False
             
         print(f"Знайдено {len(files_to_process)} файлів для структурування.")
@@ -130,11 +130,21 @@ class KnowledgeFormatter:
         
         for file_path in files_to_process:
             print(f"\nОбробка файлу: {os.path.basename(file_path)}...")
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read().strip()
+            
+            if file_path.endswith(".docx"):
+                try:
+                    import docx
+                    doc = docx.Document(file_path)
+                    content = "\n".join([p.text for p in doc.paragraphs]).strip()
+                except Exception as e:
+                    print(f"Помилка зчитування .docx файлу {file_path}: {e}")
+                    continue
+            else:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read().strip()
                 
             if not content:
-                print(f"Файл {os.path.basename(file_path)} порожній. Пропуск.")
+                print(f"Файл {os.path.basename(file_path)} порожній або не вдалося отримати текст. Пропуск.")
                 continue
                 
             # Розбиваємо текст на частини, якщо він занадто довгий

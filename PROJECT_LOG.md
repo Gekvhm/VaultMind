@@ -142,6 +142,16 @@ Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/in
 Motivation: Запит користувача дозволити моделі вести осмислений діалог та використовувати логічний аналіз замість повернення сухого токену `[NO_CONTEXT_FOUND]`, коли у базі немає точного збігу.
 Description: Вилучено жорсткі перевірки `if not chunks` з ендпоінтів сервера та змінено `system_prompt` у `inference.py`. Якщо інформація відсутня, модель попереджає користувача про це та продовжує спілкування людською мовою, спираючись на логіку та власні знання.
 
+[2026-06-27 16:20:00] {System-Analyst} - Інтеграція підтримки .docx у KnowledgeFormatter
+Modified files: [formatter.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/formatter.py), [requirements.txt](file:///Users/admin/Desktop/Projects/RAGLMGoal/requirements.txt)
+Motivation: Запит користувача на можливість завантаження та парсингу документів у форматі docx.
+Description: Додано бібліотеку python-docx до вимог. Модифіковано клас KnowledgeFormatter для виявлення файлів .docx та вилучення тексту з них за допомогою docx.Document перед передачею до LLM для структурування.
+
+[2026-06-27 16:26:00] {System-Analyst} - Додавання підтримки .docx у фронтенд
+Modified files: [templates/index.html](file:///Users/admin/Desktop/Projects/RAGLMGoal/templates/index.html)
+Motivation: Запит користувача додати можливість завантажувати документи у форматі .docx через веб-інтерфейс.
+Description: Змінено опис та атрибут accept для поля вибору файлів у формі завантаження джерел для підтримки .docx на рівні фронтенду.
+
 ## Session Closure Summary [2026-06-27 15:56]
 
 
