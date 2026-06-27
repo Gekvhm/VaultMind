@@ -125,9 +125,17 @@ def run_stress_test():
         }
     ]
     
-    # Створюємо екземпляр LLM менеджера
-    # Для тесту використовуємо ті ж шляхи, що і за замовчуванням
-    inference_manager = LLMInferenceManager()
+    # Завантаження 3B моделі спеціально для стрес-тесту
+    from huggingface_hub import hf_hub_download
+    print("Завантаження легковагової 3B моделі для стрес-тесту...")
+    test_model_path = hf_hub_download(
+        repo_id="bartowski/Qwen2.5-3B-Instruct-GGUF",
+        filename="Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+        local_dir="models"
+    )
+    
+    # Створюємо екземпляр LLM менеджера з шляхом до 3B моделі
+    inference_manager = LLMInferenceManager(model_path=test_model_path)
     
     for q in queries:
         print(f"\n--- Виконання запиту: {q['query']} ---")

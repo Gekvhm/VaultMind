@@ -19,8 +19,8 @@ class LLMInferenceManager:
         print("Завантаження моделі Qwen2.5-14B-Instruct-Abliterated (Q4_K_M)...")
         # Використовуємо перевірений репозиторій bartowski або mradermacher
         self.model_path = hf_hub_download(
-            repo_id="bartowski/Qwen2.5-Coder-14B-Instruct-abliterated-GGUF",
-            filename="Qwen2.5-Coder-14B-Instruct-abliterated-Q4_K_M.gguf",
+            repo_id="mradermacher/Qwen2.5-14B-Instruct-Abliterated-GGUF",
+            filename="Qwen2.5-14B-Instruct-Abliterated.Q4_K_M.gguf",
             local_dir="models"
         )
         return self.model_path
@@ -40,21 +40,12 @@ class LLMInferenceManager:
                 model_path=model_file,
                 n_ctx=self.context_size,
                 n_gpu_layers=-1,       # Завантаження всіх шарів у GPU (Metal)
-                type_k=8,              # Q8_0 KV Cache для Key
-                type_v=8,              # Q8_0 KV Cache для Value
                 use_mmap=True,         # Використання memory-mapped файлів
                 verbose=False          # Приховуємо низькорівневі логи llama.cpp
             )
         except Exception as e:
-            print(f"Попередження: Помилка ініціалізації з Q8_0 KV-кешем: {str(e)}. Спроба запуску з класичним кешем...")
-            # Fallback на звичайний запуск у разі несумісності параметрів
-            self.llm = Llama(
-                model_path=model_file,
-                n_ctx=self.context_size,
-                n_gpu_layers=-1,
-                use_mmap=True,
-                verbose=False
-            )
+            print(f"Помилка ініціалізації LLM: {str(e)}")
+            raise e
 
     def print_memory_usage(self):
         """Виводить поточне споживання пам'яті системою."""
@@ -89,6 +80,7 @@ class LLMInferenceManager:
         # Системний промпт для Strict Grounding (Zero Hallucination)
         system_prompt = """Ти — суворий аналітичний помічник з нульовим витоком зовнішніх знань.
 Твоє завдання — відповісти на запит користувача, спираючись ВИКЛЮЧНО на надані блоки контексту (BLOCK 1, BLOCK 2 тощо).
+Контекст може бути англійською або іншою мовою, але ти повинен дати відповідь українською мовою на основі перекладу та аналізу наданих фактів.
 
 КРИТИЧНІ ПРАВИЛА:
 1. Відповідай строго на основі наданих фактів. Не вигадуй інформацію та не використовуй свої внутрішні знання, отримані під час попереднього навчання.
@@ -115,6 +107,9 @@ class LLMInferenceManager:
                 max_tokens=1024
             )
             ans = response["choices"][0]["message"]["content"].strip()
+            # Нормалізуємо токен відсутності контексту
+            if "NO_CONTEXT_FOUND" in ans.upper() or not ans:
+                return "[NO_CONTEXT_FOUND]"
             return ans
         finally:
             # Ручне очищення сміття після інференсу
