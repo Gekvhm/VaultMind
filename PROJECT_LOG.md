@@ -72,6 +72,11 @@ Modified files: [cli.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/cli.py)
 Motivation: Інтеграція нової серверної команди у консольний інтерфейс.
 Description: Додано обробник `cmd_serve` та відповідні аргументи командного рядка (`--host`, `--port`, `--reload`) для запуску FastAPI сервера та веб-панелі безпосередньо через `./cli.py serve`.
 
+[2026-06-27 15:48:00] {System-Analyst} - Створення тестів API воркспейсів
+Modified files: [tests/test_workspaces.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/tests/test_workspaces.py)
+Motivation: Автоматизація перевірки працездатності FastAPI ендпоінтів та ізоляції воркспейсів.
+Description: Написано юніт-тести для перевірки життєвого циклу воркспейсів (список, створення, оновлення налаштувань, видалення) за допомогою FastAPI `TestClient`. Всі тести успішно пройдено.
+
 ## Session Closure Summary
 
 ### Completed
