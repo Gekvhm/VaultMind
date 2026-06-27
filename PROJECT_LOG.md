@@ -37,6 +37,11 @@ Modified files: None (Analysis stage completed)
 Motivation: Запит користувача на перевірку точності лінкування джерел та суворої фільтрації фактів, яких немає в базі знань (Zero Hallucination).
 Description: Проведено тестування запитів до локальної RAG-системи. Модель Qwen2.5-3B-Instruct успішно відповіла на запит про Apple Silicon, вказавши посилання на блок джерела `[[test_note.md#BLOCK 1]]`. Запит про висоту Евересту (факту немає в базі) повернув строгий токен `[NO_CONTEXT_FOUND]`, підтверджуючи захист від витоку знань.
 
+[2026-06-27 15:21:00] {System-Analyst} - Аналіз архітектури та кодової бази локальної RAG-системи
+Modified files: [project_analysis.md](file:///Users/admin/.gemini/antigravity/brain/e4cd4373-ca90-4e6b-a9e5-3d1de9bbb6de/project_analysis.md) (Artifact)
+Motivation: Запит користувача на проведення аналізу проекту.
+Description: Проведено детальний аналіз архітектури, модулів (cli.py, ingestion.py, indexing.py, inference.py, formatter.py) та результатів стрес-тестування. Виявлено потенційні слабкі місця (проблема сумісності `IN ()` в SQLite на старих версіях, відсутність фактичного увімкнення квантування KV-кешу в коді, обмеження парсингу списків у frontmatter та масштабованість векторного пошуку numpy). Створено артефакт з детальним звітом та рекомендаціями.
+
 ## Session Closure Summary
 
 ### Completed
