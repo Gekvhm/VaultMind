@@ -42,6 +42,11 @@ Modified files: [project_analysis.md](file:///Users/admin/.gemini/antigravity/br
 Motivation: Запит користувача на проведення аналізу проекту.
 Description: Проведено детальний аналіз архітектури, модулів (cli.py, ingestion.py, indexing.py, inference.py, formatter.py) та результатів стрес-тестування. Виявлено потенційні слабкі місця (проблема сумісності `IN ()` в SQLite на старих версіях, відсутність фактичного увімкнення квантування KV-кешу в коді, обмеження парсингу списків у frontmatter та масштабованість векторного пошуку numpy). Створено артефакт з детальним звітом та рекомендаціями.
 
+[2026-06-27 15:40:00] {System-Analyst} - Розширення inference.py для підтримки хмарних API
+Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/inference.py)
+Motivation: Вимоги користувача підключити хмарні OpenAI-сумісні моделі (DeepSeek V4) та розділити логіку конфігурації.
+Description: Модифіковано `LLMInferenceManager` для зчитування конфігурації провайдерів. Додано підтримку хмарних провайдерів через клієнт `openai` для генерації відповідей та структурування нотаток. Також увімкнено квантування KV-кешу (`type_k=8`, `type_v=8`) для локального запуску.
+
 ## Session Closure Summary
 
 ### Completed

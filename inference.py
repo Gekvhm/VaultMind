@@ -5,9 +5,16 @@ from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 
 class LLMInferenceManager:
-    def __init__(self, model_path=None, context_size=8192):
-        self.model_path = model_path
-        self.context_size = context_size
+    def __init__(self, config=None, model_path=None, context_size=8192):
+        self.config = config or {
+            "provider": "local",
+            "local_model_path": model_path,
+            "context_size": context_size,
+            "rrf_threshold": 0.015
+        }
+        # Збереження сумісності зі старим інтерфейсом
+        self.model_path = self.config.get("local_model_path") or model_path
+        self.context_size = self.config.get("context_size") or context_size
         self.llm = None
         
     def download_model(self):
@@ -17,7 +24,6 @@ class LLMInferenceManager:
             
         os.makedirs("models", exist_ok=True)
         print("Завантаження моделі Qwen2.5-14B-Instruct-Abliterated (Q4_K_M)...")
-        # Використовуємо перевірений репозиторій bartowski або mradermacher
         self.model_path = hf_hub_download(
             repo_id="mradermacher/Qwen2.5-14B-Instruct-Abliterated-GGUF",
             filename="Qwen2.5-14B-Instruct-Abliterated.Q4_K_M.gguf",
@@ -27,20 +33,23 @@ class LLMInferenceManager:
 
     def init_llm(self):
         """Ініціалізує LLM з Metal-прискоренням та квантованим KV Cache (Q8_0)."""
+        if self.config.get("provider", "local") == "openai":
+            return
+            
         if self.llm is not None:
             return
             
         model_file = self.download_model()
         print(f"Ініціалізація LLM моделі з {model_file}...")
         
-        # Налаштування параметрів для Metal API
-        # type_k = 8 означає GGML_TYPE_Q8_0 (квантований KV-кеш)
         try:
             self.llm = Llama(
                 model_path=model_file,
                 n_ctx=self.context_size,
                 n_gpu_layers=-1,       # Завантаження всіх шарів у GPU (Metal)
                 use_mmap=True,         # Використання memory-mapped файлів
+                type_k=8,              # GGML_TYPE_Q8_0 (квантування KV-кешу для ключів)
+                type_v=8,              # GGML_TYPE_Q8_0 (квантування KV-кешу для значень)
                 verbose=False          # Приховуємо низькорівневі логи llama.cpp
             )
         except Exception as e:
@@ -48,13 +57,16 @@ class LLMInferenceManager:
             raise e
 
     def print_memory_usage(self):
-        """Виводить поточне споживання пам'яті системою."""
+        """Виводит поточне споживання пам'яті системою."""
         process = psutil.Process(os.getpid())
         ram_usage = process.memory_info().rss / (1024 * 1024)
         print(f"[Memory Monitor] Споживання RAM процесом Python: {ram_usage:.2f} MB")
 
-    def generate_response(self, query, retrieved_chunks, rrf_threshold=0.015):
+    def generate_response(self, query, retrieved_chunks, rrf_threshold=None):
         """Генерує відповідь за допомогою LLM на основі контексту з суворим заземленням."""
+        if rrf_threshold is None:
+            rrf_threshold = self.config.get("rrf_threshold", 0.015)
+            
         # 1. Перевірка RRF-порогу
         if not retrieved_chunks:
             return "[NO_CONTEXT_FOUND]"
@@ -73,11 +85,7 @@ class LLMInferenceManager:
             context_str += f"Content: {chunk['content']}\n"
             context_str += "====================\n\n"
             
-        # 3. Ініціалізація моделі
-        self.init_llm()
-        self.print_memory_usage()
-        
-        # Системний промпт для Strict Grounding (Zero Hallucination)
+        # 3. Підготовка промпту
         system_prompt = """Ти — суворий аналітичний помічник з нульовим витоком зовнішніх знань.
 Твоє завдання — відповісти на запит користувача, спираючись ВИКЛЮЧНО на надані блоки контексту (BLOCK 1, BLOCK 2 тощо).
 Контекст може бути англійською або іншою мовою, але ти повинен дати відповідь українською мовою на основі перекладу та аналізу наданих фактів.
@@ -89,37 +97,49 @@ class LLMInferenceManager:
 4. Для кожного факту у відповіді обов'язково вказуй джерело у форматі [[НазваФайлу]].
 5. Твоя відповідь має бути написана виключно українською мовою.
 """
-
         user_prompt = f"Контекст:\n{context_str}\nЗапит користувача: {query}"
         
-        # Виклик моделі через Chat Completion API
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
         
-        print("Генерація відповіді локальною LLM (Metal API)...")
-        # Обгортаємо генерацію в блок try-finally для примусового очищення пам'яті
-        try:
-            response = self.llm.create_chat_completion(
+        provider = self.config.get("provider", "local")
+        
+        if provider == "local":
+            self.init_llm()
+            self.print_memory_usage()
+            print("Генерація відповіді локальною LLM (Metal API)...")
+            try:
+                response = self.llm.create_chat_completion(
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=1024
+                )
+                ans = response["choices"][0]["message"]["content"].strip()
+            finally:
+                gc.collect()
+        else:
+            print(f"Генерація відповіді через Cloud API ({self.config.get('openai_model_name')})...")
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=self.config.get("openai_api_key"),
+                base_url=self.config.get("openai_base_url") or None
+            )
+            res = client.chat.completions.create(
+                model=self.config.get("openai_model_name"),
                 messages=messages,
-                temperature=0.0, # Робимо відповіді максимально детермінованими
+                temperature=0.0,
                 max_tokens=1024
             )
-            ans = response["choices"][0]["message"]["content"].strip()
-            # Normalise the context absence token
-            if "NO_CONTEXT_FOUND" in ans.upper() or not ans:
-                return "[NO_CONTEXT_FOUND]"
-            return ans
-        finally:
-            # Manual garbage collection after inference
-            gc.collect()
+            ans = res.choices[0].message.content.strip()
+            
+        if "NO_CONTEXT_FOUND" in ans.upper() or not ans:
+            return "[NO_CONTEXT_FOUND]"
+        return ans
 
     def generate_structured_note(self, raw_text, concepts):
         """Перетворює сирий текст на структуровану нотатку Markdown з авто-лінкуванням."""
-        self.init_llm()
-        self.print_memory_usage()
-        
         concepts_str = ", ".join([f'"{c}"' for c in concepts]) if concepts else "немає"
         
         system_prompt = f"""Ти — професійний аналітик та редактор баз знань Obsidian.
@@ -162,14 +182,33 @@ type: concept
             {"role": "user", "content": f"Відомі концепти: [{concepts_str}]\n\nСирий текст для структурування:\n\n{raw_text}"}
         ]
         
-        print("Форматування тексту за допомогою LLM (Metal API)...")
-        try:
-            response = self.llm.create_chat_completion(
+        provider = self.config.get("provider", "local")
+        
+        if provider == "local":
+            self.init_llm()
+            self.print_memory_usage()
+            print("Форматування тексту за допомогою LLM (Metal API)...")
+            try:
+                response = self.llm.create_chat_completion(
+                    messages=messages,
+                    temperature=0.2,
+                    max_tokens=2048
+                )
+                return response["choices"][0]["message"]["content"].strip()
+            finally:
+                gc.collect()
+        else:
+            print(f"Форматування тексту через Cloud API ({self.config.get('openai_model_name')})...")
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=self.config.get("openai_api_key"),
+                base_url=self.config.get("openai_base_url") or None
+            )
+            res = client.chat.completions.create(
+                model=self.config.get("openai_model_name"),
                 messages=messages,
                 temperature=0.2,
                 max_tokens=2048
             )
-            return response["choices"][0]["message"]["content"].strip()
-        finally:
-            gc.collect()
+            return res.choices[0].message.content.strip()
 
