@@ -137,6 +137,11 @@ Modified files: [templates/index.html](file:///Users/admin/Desktop/Projects/RAGL
 Motivation: Баг UI, при якому історія чату не оновлювалася і залишалася від попереднього воркспейсу після перемикання.
 Description: Реалізовано клієнтське збереження історії повідомлень (`chatHistories`) для кожного воркспейсу окремо та перерендеринг вікна повідомлень при зміні активного робочого простору.
 
+[2026-06-27 16:11:00] {System-Analyst} - Перехід від жорсткого заземлення до логічного діалогу при відсутності контексту
+Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/inference.py), [server.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/server.py)
+Motivation: Запит користувача дозволити моделі вести осмислений діалог та використовувати логічний аналіз замість повернення сухого токену `[NO_CONTEXT_FOUND]`, коли у базі немає точного збігу.
+Description: Вилучено жорсткі перевірки `if not chunks` з ендпоінтів сервера та змінено `system_prompt` у `inference.py`. Якщо інформація відсутня, модель попереджає користувача про це та продовжує спілкування людською мовою, спираючись на логіку та власні знання.
+
 ## Session Closure Summary [2026-06-27 15:56]
 
 

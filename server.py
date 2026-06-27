@@ -423,9 +423,6 @@ def query_workspace(ws_id: str, req: QueryRequest):
     db_manager = RAGIndexManager(db_path=db_path)
     chunks = db_manager.hybrid_search_rrf(req.query, limit=5, graph_boost=1.5)
     
-    if not chunks:
-        return {"response": "[NO_CONTEXT_FOUND]", "context": []}
-        
     # 2. LLM Генерація
     inference = LLMInferenceManager(config=config)
     response = inference.generate_response(req.query, chunks)
@@ -452,9 +449,6 @@ def run_rag_inference(ws_id: str, user_query: str) -> str:
     db_manager = RAGIndexManager(db_path=db_path)
     chunks = db_manager.hybrid_search_rrf(user_query, limit=5)
     
-    if not chunks:
-        return "[NO_CONTEXT_FOUND]"
-        
     inference = LLMInferenceManager(config=config)
     return inference.generate_response(user_query, chunks)
 
