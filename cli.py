@@ -141,7 +141,7 @@ def main():
     # Підкоманда serve
     parser_serve = subparsers.add_parser("serve", help="Запустити сервер API та веб-інтерфейс")
     parser_serve.add_argument("--host", default="127.0.0.1", help="Хост сервера")
-    parser_serve.add_argument("--port", type=int, default=8000, help="Порт сервера")
+    parser_serve.add_argument("--port", type=int, default=8001, help="Порт сервера")
     parser_serve.add_argument("--reload", action="store_true", help="Авто-перезапуск сервера при зміні коду")
     
     args = parser.parse_args()
