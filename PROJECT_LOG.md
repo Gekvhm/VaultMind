@@ -57,6 +57,11 @@ Modified files: [formatter.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/fo
 Motivation: Необхідність передавати конфігурацію моделей воркспейсу при форматуванні сирих даних.
 Description: Додано підтримку параметру `llm_config` в конструктор `KnowledgeFormatter` для динамічного використання відповідних локальних чи хмарних моделей під час структурування текстів у межах конкретного воркспейсу.
 
+[2026-06-27 15:45:00] {System-Analyst} - Створення FastAPI сервера в server.py
+Modified files: [server.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/server.py)
+Motivation: Вимога користувача реалізувати серверний інтерфейс з ізоляцією воркспейсів та OpenAI-сумісним API.
+Description: Розроблено FastAPI сервер з підтримкою CRUD для воркспейсів, завантаженням та авто-індексацією файлів, налаштуванням провайдерів моделей, та OpenAI-сумісними ендпоінтами для активного та конкретних воркспейсів.
+
 ## Session Closure Summary
 
 ### Completed
