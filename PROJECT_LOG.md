@@ -122,6 +122,11 @@ Modified files: None (Analysis stage completed)
 Motivation: Запит користувача на наповнення першої тестової бази RAG для пентесту домашньої локальної мережі (macOS, Windows, Linux) з інструментарієм та симуляцією внутрішньої документації.
 Description: Розроблено структуру бази знань (декомпозиція) та підготовлено набір Markdown-нотаток для імпорту в RAG (інструменти сканування, експлуатація ОС, топологія мережі, файли конфігурацій та компрометація облікових даних).
 
+[2026-06-27 15:53:30] {System-Analyst} - Вимкнення квантування KV-кешу для усунення крашу Metal на macOS
+Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/inference.py)
+Motivation: Виявлено критичну помилку `GGML_ASSERT: ne0 % ggml_blck_size(dst->type) == 0` під час ініціалізації локальної LLM з `type_k=8, type_v=8` на macOS.
+Description: Вилучено параметри `type_k` та `type_v` з конструктора `Llama` в `inference.py`, повернувши стандартний тип F16 KV-кешу для стабільної роботи Metal-прискорення.
+
 ## Session Closure Summary [2026-06-27 15:56]
 
 

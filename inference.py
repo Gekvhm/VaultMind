@@ -48,8 +48,6 @@ class LLMInferenceManager:
                 n_ctx=self.context_size,
                 n_gpu_layers=-1,       # Завантаження всіх шарів у GPU (Metal)
                 use_mmap=True,         # Використання memory-mapped файлів
-                type_k=8,              # GGML_TYPE_Q8_0 (квантування KV-кешу для ключів)
-                type_v=8,              # GGML_TYPE_Q8_0 (квантування KV-кешу для значень)
                 verbose=False          # Приховуємо низькорівневі логи llama.cpp
             )
         except Exception as e:
