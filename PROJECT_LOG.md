@@ -67,6 +67,11 @@ Modified files: [templates/index.html](file:///Users/admin/Desktop/Projects/RAGL
 Motivation: Надання користувачеві преміального веб-інтерфейсу (локального NotebookLM) для візуального управління RAG.
 Description: Створено HTML/CSS/JS інтерфейс у стилі glassmorphic з можливістю створення/видалення робочих просторів, drag-and-drop завантаженням джерел, чатом Playground (із посиланнями на джерела) та конфігурацією провайдерів моделей (локальних GGUF та хмарних OpenAI-сумісних, наприклад DeepSeek V4).
 
+[2026-06-27 15:47:00] {System-Analyst} - Додавання команди serve до cli.py
+Modified files: [cli.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/cli.py)
+Motivation: Інтеграція нової серверної команди у консольний інтерфейс.
+Description: Додано обробник `cmd_serve` та відповідні аргументи командного рядка (`--host`, `--port`, `--reload`) для запуску FastAPI сервера та веб-панелі безпосередньо через `./cli.py serve`.
+
 ## Session Closure Summary
 
 ### Completed

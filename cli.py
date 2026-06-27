@@ -94,6 +94,11 @@ def cmd_format(args):
     else:
         print("Під час структурування виникли помилки.")
 
+def cmd_serve(args):
+    print(f"=== Запуск RAG-сервера 'NotebookLM' на {args.host}:{args.port} ===")
+    import uvicorn
+    uvicorn.run("server:app", host=args.host, port=args.port, reload=args.reload)
+
 def main():
     parser = argparse.ArgumentParser(
         description="Локальна RAG-система з нульовим витоком знань та Metal прискоренням"
@@ -133,6 +138,12 @@ def main():
     parser_query.add_argument("--llm-model", default=None, help="Локальний шлях до GGUF моделі LLM")
     parser_query.add_argument("--embed-model", default=None, help="Локальний шлях до GGUF моделі ембедінгів")
     
+    # Підкоманда serve
+    parser_serve = subparsers.add_parser("serve", help="Запустити сервер API та веб-інтерфейс")
+    parser_serve.add_argument("--host", default="127.0.0.1", help="Хост сервера")
+    parser_serve.add_argument("--port", type=int, default=8000, help="Порт сервера")
+    parser_serve.add_argument("--reload", action="store_true", help="Авто-перезапуск сервера при зміні коду")
+    
     args = parser.parse_args()
     
     if args.command == "init":
@@ -143,6 +154,8 @@ def main():
         cmd_query(args)
     elif args.command == "format":
         cmd_format(args)
+    elif args.command == "serve":
+        cmd_serve(args)
     else:
         parser.print_help()
 
