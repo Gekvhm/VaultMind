@@ -17,3 +17,26 @@ Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/in
 Motivation: RepositoryNotFoundError when trying to download LLM model.
 Description: Updated `repo_id` and `filename` in `LLMInferenceManager.download_model` to point to the correct, existing repo `bartowski/Qwen2.5-Coder-14B-Instruct-abliterated-GGUF` and file `Qwen2.5-Coder-14B-Instruct-abliterated-Q4_K_M.gguf`.
 
+[2026-06-27 13:34:00] {Master-Orchestrator} - Аналіз ліміту контекстного вікна та бюджету пам'яті
+Modified files: [PROJECT_LOG.md](file:///Users/admin/Desktop/Projects/RAGLMGoal/PROJECT_LOG.md)
+Motivation: Запит користувача щодо уточнення ліміту контекстного вікна та бюджету оперативної пам'яті.
+Description: Розраховано обсяг пам'яті для FP16 KV-кешу (1.5 ГБ) при 8k контексті для моделі Qwen2.5-14B та підтверджено сумісність із жорстким лімітом 16 ГБ RAM.
+
+## Session Closure Summary
+
+### Completed
+- **Аналіз ліміту контекстного вікна** — Проведено розрахунок споживання пам'яті для FP16 KV-кешу на моделі Qwen2.5-14B при контексті 8192 токени. Доведено, що збільшення контексту призведе до перевищення ліміту 16 ГБ RAM. Результати надано користувачу.
+- **Оцінка рантайму Metal** — Підтверджено стабільність роботи Metal без квантування KV-кешу (через виявлені раніше `GGML_ASSERT` збої) при збереженні загального споживання системи в межах ~15.15 ГБ RAM.
+
+### Not Completed
+- Немає. Усі заплановані аналітичні та інженерні завдання виконано.
+
+### Discovered
+- При використанні FP16 KV-кешу лінійне зростання контексту (наприклад, до 16k чи 32k) створює значний оверхед пам'яті (~3.0 ГБ та ~6.0 ГБ відповідно), що робить 8k оптимальним лімітом для пристроїв із 16 ГБ RAM.
+
+### Next Steps
+1. Запуск індексації реального Obsidian сховища за допомогою команди `./cli.py ingest <шлях_до_нотаток>`.
+2. Виконання тестових запитів через `./cli.py query "<запит>"` для перевірки когнітивного синтезу на реальних даних.
+3. Моніторинг RAM за допомогою внутрішнього `Memory Monitor` під час перших запусків на реальній базі знань.
+
+
