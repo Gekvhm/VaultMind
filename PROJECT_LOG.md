@@ -127,6 +127,11 @@ Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/in
 Motivation: Виявлено критичну помилку `GGML_ASSERT: ne0 % ggml_blck_size(dst->type) == 0` під час ініціалізації локальної LLM з `type_k=8, type_v=8` на macOS.
 Description: Вилучено параметри `type_k` та `type_v` з конструктора `Llama` в `inference.py`, повернувши стандартний тип F16 KV-кешу для стабільної роботи Metal-прискорення.
 
+[2026-06-27 16:05:00] {System-Analyst} - Створення та індексація 4 нових експертних воркспейсів
+Modified files: [scratch/create_workspaces.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/scratch/create_workspaces.py), `workspaces/*`
+Motivation: Запит користувача на наповнення першої тестової бази знань експертним контентом за зразком Fable5.
+Description: Створено та повністю проіндексовано 4 нові робочі простори (Active Directory, Мережева інфраструктура, Обхід захисту кінцевих точок, Веб- та API-експлуатація). База знань наповнена високоякісними методологічними матеріалами, включаючи команди та схеми атак.
+
 ## Session Closure Summary [2026-06-27 15:56]
 
 
