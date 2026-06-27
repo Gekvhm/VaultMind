@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.db
+models/
+tests/temp_docs/
+tests/results/
+.DS_Store
