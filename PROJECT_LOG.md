@@ -52,6 +52,11 @@ Modified files: [indexing.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/ind
 Motivation: Усунення потенційної помилки синтаксису SQLite `IN ()` при порожніх списках сутностей у чанку.
 Description: Параметризовано та оптимізовано перевірку зв'язків першого порядку у графі знань. Запит виконується лише за наявності сутностей у чанку та використовує класичні плейсхолдери для зв'язування замість динамічного форматування рядка.
 
+[2026-06-27 15:43:00] {System-Analyst} - Оновлення KnowledgeFormatter в formatter.py
+Modified files: [formatter.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/formatter.py)
+Motivation: Необхідність передавати конфігурацію моделей воркспейсу при форматуванні сирих даних.
+Description: Додано підтримку параметру `llm_config` в конструктор `KnowledgeFormatter` для динамічного використання відповідних локальних чи хмарних моделей під час структурування текстів у межах конкретного воркспейсу.
+
 ## Session Closure Summary
 
 ### Completed

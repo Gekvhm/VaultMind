@@ -5,9 +5,9 @@ import re
 from inference import LLMInferenceManager
 
 class KnowledgeFormatter:
-    def __init__(self, db_path="rag_storage.db", llm_model_path=None):
+    def __init__(self, db_path="rag_storage.db", llm_model_path=None, llm_config=None):
         self.db_path = db_path
-        self.llm_manager = LLMInferenceManager(model_path=llm_model_path)
+        self.llm_manager = LLMInferenceManager(config=llm_config, model_path=llm_model_path)
         
     def load_existing_concepts(self, vault_dir=None):
         """Збирає унікальні поняття з бази даних та назви файлів з Obsidian Vault."""
