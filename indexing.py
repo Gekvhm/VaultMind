@@ -330,16 +330,19 @@ class RAGIndexManager:
                         break
                     
                     # Перевіряємо зв'язок 1-го порядку в таблиці relationships
-                    cursor.execute("""
-                    SELECT COUNT(*) FROM relationships 
-                    WHERE (source_id = ? AND target_id IN (%s))
-                       OR (target_id = ? AND source_id IN (%s))
-                    """ % (','.join(map(str, chunk_ent_ids)), ','.join(map(str, chunk_ent_ids))), 
-                    (q_ent_id, q_ent_id))
-                    
-                    if cursor.fetchone()[0] > 0:
-                        has_connection = True
-                        break
+                    if chunk_ent_ids:
+                        placeholders = ','.join('?' for _ in chunk_ent_ids)
+                        query = f"""
+                        SELECT COUNT(*) FROM relationships 
+                        WHERE (source_id = ? AND target_id IN ({placeholders}))
+                           OR (target_id = ? AND source_id IN ({placeholders}))
+                        """
+                        params = [q_ent_id] + chunk_ent_ids + [q_ent_id] + chunk_ent_ids
+                        cursor.execute(query, params)
+                        
+                        if cursor.fetchone()[0] > 0:
+                            has_connection = True
+                            break
                         
                 # Бустимо RRF скор, якщо знайдено логічний зв'язок у графі знань
                 if has_connection:

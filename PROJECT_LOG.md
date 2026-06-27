@@ -47,6 +47,11 @@ Modified files: [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/in
 Motivation: Вимоги користувача підключити хмарні OpenAI-сумісні моделі (DeepSeek V4) та розділити логіку конфігурації.
 Description: Модифіковано `LLMInferenceManager` для зчитування конфігурації провайдерів. Додано підтримку хмарних провайдерів через клієнт `openai` для генерації відповідей та структурування нотаток. Також увімкнено квантування KV-кешу (`type_k=8`, `type_v=8`) для локального запуску.
 
+[2026-06-27 15:42:00] {System-Analyst} - Виправлення SQL-запиту в indexing.py
+Modified files: [indexing.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/indexing.py)
+Motivation: Усунення потенційної помилки синтаксису SQLite `IN ()` при порожніх списках сутностей у чанку.
+Description: Параметризовано та оптимізовано перевірку зв'язків першого порядку у графі знань. Запит виконується лише за наявності сутностей у чанку та використовує класичні плейсхолдери для зв'язування замість динамічного форматування рядка.
+
 ## Session Closure Summary
 
 ### Completed
