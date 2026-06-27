@@ -22,11 +22,18 @@ Modified files: [PROJECT_LOG.md](file:///Users/admin/Desktop/Projects/RAGLMGoal/
 Motivation: Запит користувача щодо уточнення ліміту контекстного вікна та бюджету оперативної пам'яті.
 Description: Розраховано обсяг пам'яті для FP16 KV-кешу (1.5 ГБ) при 8k контексті для моделі Qwen2.5-14B та підтверджено сумісність із жорстким лімітом 16 ГБ RAM.
 
+[2026-06-27 14:15:00] {Master-Orchestrator} - Реалізація автоматизованого конвеєра форматування та авто-лінкування
+Modified files: [formatter.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/formatter.py), [inference.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/inference.py), [cli.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/cli.py), [tests/test_formatter.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/tests/test_formatter.py), [PROJECT_LOG.md](file:///Users/admin/Desktop/Projects/RAGLMGoal/PROJECT_LOG.md)
+Motivation: Запит користувача на створення алгоритму наповнення бази знань згідно з розробленими рекомендаціями (структурування заголовків, авто-лінкування вікі-посилань, архівація та розбиття довгих текстів).
+Description: Реалізовано клас `KnowledgeFormatter`, додано нову команду `cli.py format` для структурування сирих файлів. Впроваджено автоматичне лінкування концептів з бази даних та файлів Obsidian Vault, автоматичне архівування сирих файлів у `.archive/` та логічне розбиття довгих документів на дрібніші зв'язані нотатки. Додано модульний тест `tests/test_formatter.py` для перевірки.
+
 ## Session Closure Summary
 
 ### Completed
+- **Автоматизований конвеєр структурування знань (Knowledge Formatter)** — Реалізовано модуль `formatter.py` та CLI команду `format` для структурування сирих файлів за допомогою локальної LLM. Додано авто-лінкування за наявними концептами, автоматичне перенесення до папки `.archive/` та спліттінг довгих документів. Повністю протестовано в `tests/test_formatter.py` (OK).
 - **Аналіз ліміту контекстного вікна** — Проведено розрахунок споживання пам'яті для FP16 KV-кешу на моделі Qwen2.5-14B при контексті 8192 токени. Доведено, що збільшення контексту призведе до перевищення ліміту 16 ГБ RAM. Результати надано користувачу.
 - **Оцінка рантайму Metal** — Підтверджено стабільність роботи Metal без квантування KV-кешу (через виявлені раніше `GGML_ASSERT` збої) при збереженні загального споживання системи в межах ~15.15 ГБ RAM.
+
 
 ### Not Completed
 - Немає. Усі заплановані аналітичні та інженерні завдання виконано.

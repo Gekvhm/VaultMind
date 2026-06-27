@@ -75,6 +75,25 @@ def cmd_query(args):
     print(response)
     print("=" * 60)
 
+def cmd_format(args):
+    if not os.path.exists(args.path):
+        print(f"Помилка: Шлях '{args.path}' не існує.")
+        sys.exit(1)
+        
+    print(f"=== Запуск структурування сирих даних: {args.path} ===")
+    from formatter import KnowledgeFormatter
+    
+    formatter = KnowledgeFormatter(db_path=args.db, llm_model_path=args.llm_model)
+    success = formatter.process_raw_data(
+        input_path=args.path,
+        vault_dir=args.out_dir,
+        auto_ingest=args.auto_ingest
+    )
+    if success:
+        print("Процес структурування та наповнення бази завершено успішно.")
+    else:
+        print("Під час структурування виникли помилки.")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Локальна RAG-система з нульовим витоком знань та Metal прискоренням"
@@ -97,6 +116,13 @@ def main():
     parser_ingest.add_argument("--chunk-overlap", type=int, default=200, help="Накладання чанків")
     parser_ingest.add_argument("--embed-model", default=None, help="Локальний шлях до GGUF моделі ембедінгів")
     
+    # Підкоманда format
+    parser_format = subparsers.add_parser("format", help="Структурувати сирі тексти у замітки Obsidian та наповнити базу")
+    parser_format.add_argument("path", help="Шлях до сирого файлу або папки для структурування")
+    parser_format.add_argument("--out-dir", required=True, help="Папка призначення (Obsidian Vault)")
+    parser_format.add_argument("--auto-ingest", action="store_true", help="Автоматично запустити індексацію після форматування")
+    parser_format.add_argument("--llm-model", default=None, help="Локальний шлях до GGUF моделі LLM")
+
     # Підкоманда query
     parser_query = subparsers.add_parser("query", help="Запитати систему RAG")
     parser_query.add_argument("query", help="Текст запитання")
@@ -115,6 +141,8 @@ def main():
         cmd_ingest(args)
     elif args.command == "query":
         cmd_query(args)
+    elif args.command == "format":
+        cmd_format(args)
     else:
         parser.print_help()
 

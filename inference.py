@@ -107,10 +107,52 @@ class LLMInferenceManager:
                 max_tokens=1024
             )
             ans = response["choices"][0]["message"]["content"].strip()
-            # Нормалізуємо токен відсутності контексту
+            # Normalise the context absence token
             if "NO_CONTEXT_FOUND" in ans.upper() or not ans:
                 return "[NO_CONTEXT_FOUND]"
             return ans
         finally:
-            # Ручне очищення сміття після інференсу
+            # Manual garbage collection after inference
             gc.collect()
+
+    def generate_structured_note(self, raw_text, concepts):
+        """Перетворює сирий текст на структуровану нотатку Markdown з авто-лінкуванням."""
+        self.init_llm()
+        self.print_memory_usage()
+        
+        concepts_str = ", ".join([f'"{c}"' for c in concepts]) if concepts else "немає"
+        
+        system_prompt = f"""Ти — професійний аналітик та редактор баз знань Obsidian.
+Твоє завдання — перетворити сирий, неструктурований текст на акуратну, структуровану нотатку Markdown.
+
+КРИТИЧНІ ПРАВИЛА ФОРМАТУВАННЯ:
+1. Завжди починай відповідь з блоку метаданих YAML (frontmatter) у такому форматі:
+---
+tags: [відповідні теги через кому]
+date: 2026-06-27
+status: active
+type: concept
+---
+2. Організуй вміст за допомогою логічних заголовків ## та ###. Прибери хаотичне форматування чи артефакти сканування.
+3. Текст має бути написаний у нейтральному, аналітичному та лаконічному стилі, без зайвих вступів ("ось ваша нотатка") та висновків. Відразу пиши Markdown.
+4. Тобі надано список відомих концептів: [{concepts_str}].
+   Якщо у тексті зустрічається поняття з цього списку (у будь-кому відмінку, числі чи близькому синонімі), ти ЗОБОВ'ЯЗАНИЙ обгорнути його у [[вікі-посилання]] (наприклад, якщо в списку є "Apple Silicon", а в тексті "процесорі Apple Silicon", напиши "процесорі [[Apple Silicon]]").
+5. Якщо в тексті згадуються інші важливі терміни, назви технологій, проектів чи людей, яких немає в списку, але які є важливими концептами, також обгорни їх у [[вікі-посилання]], щоб створити нові потенційні нотатки.
+6. Вся нотатка має бути написана виключно українською мовою.
+"""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Сирий текст для структурування:\n\n{raw_text}"}
+        ]
+        
+        print("Форматування тексту за допомогою LLM (Metal API)...")
+        try:
+            response = self.llm.create_chat_completion(
+                messages=messages,
+                temperature=0.2,
+                max_tokens=2048
+            )
+            return response["choices"][0]["message"]["content"].strip()
+        finally:
+            gc.collect()
+
