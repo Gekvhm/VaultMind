@@ -2,3 +2,7 @@ numpy==1.26.4
 huggingface-hub==0.23.0
 llama-cpp-python==0.2.76 --no-binary llama-cpp-python
 psutil==5.9.8
+fastapi==0.111.0
+uvicorn==0.30.1
+python-multipart==0.0.9
+openai==1.30.1
