@@ -781,6 +781,7 @@
                     wsList.appendChild(el);
                 });
 
+                renderChatHistory(currentWorkspace);
                 loadWorkspaceData();
             } catch (e) {
                 console.error("Помилка завантаження воркспейсів", e);
@@ -1051,10 +1052,50 @@
             }
         }
 
-        // Робота з повідомленнями
+        // Робота з повідомленнями та збереження історії чату по воркспейсах
+        const chatHistories = {}; // wsName -> array of { id, sender, text, isHTML }
         let msgIdCounter = 0;
+
+        function renderChatHistory(wsName) {
+            const chat = document.getElementById("chatMessages");
+            chat.innerHTML = "";
+            
+            if (!chatHistories[wsName]) {
+                chatHistories[wsName] = [{
+                    id: "default-welcome",
+                    sender: "assistant",
+                    text: "Привіт! Завантажте файли у джерела та задайте питання. Я згенерую відповідь, посилаючись виключно на ваші дані.",
+                    isHTML: false
+                }];
+            }
+            
+            chatHistories[wsName].forEach(msg => {
+                const el = document.createElement("div");
+                el.className = `message ${msg.sender}`;
+                el.id = msg.id;
+                if (msg.isHTML) {
+                    el.innerHTML = msg.text;
+                } else {
+                    el.innerText = msg.text;
+                }
+                chat.appendChild(el);
+            });
+            chat.scrollTop = chat.scrollHeight;
+        }
+
         function addMessage(sender, text) {
             const id = `msg-${msgIdCounter++}`;
+            
+            if (!chatHistories[currentWorkspace]) {
+                chatHistories[currentWorkspace] = [];
+            }
+            chatHistories[currentWorkspace].push({
+                id: id,
+                sender: sender,
+                text: text,
+                isHTML: false
+            });
+
             const chat = document.getElementById("chatMessages");
             const el = document.createElement("div");
             el.className = `message ${sender}`;
@@ -1066,6 +1107,14 @@
         }
 
         function updateMessage(id, newText) {
+            if (chatHistories[currentWorkspace]) {
+                const msg = chatHistories[currentWorkspace].find(m => m.id === id);
+                if (msg) {
+                    msg.text = newText;
+                    msg.isHTML = false;
+                }
+            }
+
             const el = document.getElementById(id);
             if (el) {
                 el.innerText = newText;
@@ -1075,6 +1124,14 @@
         }
 
         function updateMessageHTML(id, html) {
+            if (chatHistories[currentWorkspace]) {
+                const msg = chatHistories[currentWorkspace].find(m => m.id === id);
+                if (msg) {
+                    msg.text = html;
+                    msg.isHTML = true;
+                }
+            }
+
             const el = document.getElementById(id);
             if (el) {
                 el.innerHTML = html;
