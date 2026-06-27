@@ -62,6 +62,11 @@ Modified files: [server.py](file:///Users/admin/Desktop/Projects/RAGLMGoal/serve
 Motivation: Вимога користувача реалізувати серверний інтерфейс з ізоляцією воркспейсів та OpenAI-сумісним API.
 Description: Розроблено FastAPI сервер з підтримкою CRUD для воркспейсів, завантаженням та авто-індексацією файлів, налаштуванням провайдерів моделей, та OpenAI-сумісними ендпоінтами для активного та конкретних воркспейсів.
 
+[2026-06-27 15:46:00] {System-Analyst} - Розробка веб-інтерфейсу керування воркспейсами
+Modified files: [templates/index.html](file:///Users/admin/Desktop/Projects/RAGLMGoal/templates/index.html)
+Motivation: Надання користувачеві преміального веб-інтерфейсу (локального NotebookLM) для візуального управління RAG.
+Description: Створено HTML/CSS/JS інтерфейс у стилі glassmorphic з можливістю створення/видалення робочих просторів, drag-and-drop завантаженням джерел, чатом Playground (із посиланнями на джерела) та конфігурацією провайдерів моделей (локальних GGUF та хмарних OpenAI-сумісних, наприклад DeepSeek V4).
+
 ## Session Closure Summary
 
 ### Completed

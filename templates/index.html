@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local NotebookLM — Панель керування</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f0c1b;
+            --panel-bg: rgba(26, 21, 44, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f0ff;
+            --text-muted: #a59fb8;
+            --accent-purple: #9d4edd;
+            --accent-pink: #ff007f;
+            --accent-blue: #3a86c8;
+            --accent-gradient: linear-gradient(135deg, #7b2cbf, #ff007f);
+            --danger-color: #e63946;
+            --sidebar-width: 70px;
+            --sources-width: 280px;
+            --settings-width: 320px;
+            --glass-blur: blur(12px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(123, 44, 191, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 127, 0.1) 0%, transparent 40%);
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- 1. ПАНЕЛЬ ВОРКСПЕЙСІВ (Вертикальний Sidebar) --- */
+        .workspace-sidebar {
+            width: var(--sidebar-width);
+            background: rgba(13, 10, 24, 0.8);
+            border-right: 1px border-color;
+            border-color: var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--accent-pink);
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255,0,127,0.5);
+            cursor: default;
+        }
+
+        .ws-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            align-items: center;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .ws-item {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .ws-item:hover {
+            border-color: var(--accent-purple);
+            color: var(--text-main);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(157, 78, 221, 0.2);
+        }
+
+        .ws-item.active {
+            background: var(--accent-gradient);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255, 0, 127, 0.3);
+        }
+
+        .ws-item.active::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 14px;
+            width: 4px;
+            height: 20px;
+            background: #fff;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .ws-add-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        .ws-add-btn:hover {
+            border-color: var(--accent-pink);
+            color: var(--text-main);
+            background: rgba(255, 0, 127, 0.1);
+        }
+
+        /* --- 2. ПАНЕЛЬ ДЖЕРЕЛ (Sources) --- */
+        .sources-panel {
+            width: var(--sources-width);
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ws-delete-btn {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            cursor: pointer;
+            font-size: 0.85rem;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .ws-delete-btn:hover {
+            opacity: 1;
+        }
+
+        /* Завантажувач файлів */
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.01);
+            margin-bottom: 20px;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-purple);
+            background: rgba(157, 78, 221, 0.05);
+        }
+
+        .upload-zone p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .upload-zone input {
+            display: none;
+        }
+
+        .sources-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .source-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .source-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .source-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 80%;
+        }
+
+        .source-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .source-delete {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .source-delete:hover {
+            color: var(--danger-color);
+        }
+
+        /* --- 3. ЦЕНТРАЛЬНИЙ ЧАТ (Playground) --- */
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(10, 8, 20, 0.5);
+        }
+
+        .chat-header {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background: rgba(15, 12, 27, 0.4);
+            backdrop-filter: var(--glass-blur);
+        }
+
+        .chat-title-info h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .chat-title-info p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .message.user {
+            background: rgba(157, 78, 221, 0.15);
+            border: 1px solid rgba(157, 78, 221, 0.25);
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.assistant {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .message-citations {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .citation-tag {
+            font-size: 0.7rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--accent-purple);
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .citation-tag:hover {
+            background: rgba(157, 78, 221, 0.1);
+            border-color: rgba(157, 78, 221, 0.3);
+        }
+
+        .chat-input-area {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(15, 12, 27, 0.6);
+        }
+
+        .input-wrapper {
+            display: flex;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 8px 12px;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 10px rgba(157, 78, 221, 0.15);
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            outline: none;
+            padding: 8px;
+            resize: none;
+            max-height: 80px;
+            font-family: inherit;
+        }
+
+        .send-btn {
+            background: var(--accent-gradient);
+            border: none;
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* --- 4. ПАНЕЛЬ НАЛАШТУВАНЬ (Settings) --- */
+        .settings-panel {
+            width: var(--settings-width);
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .settings-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text-main);
+            font-size: 0.8rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-select:focus, .form-input:focus {
+            border-color: var(--accent-purple);
+        }
+
+        .form-select option {
+            background: #151128;
+            color: var(--text-main);
+        }
+
+        .btn-save {
+            width: 100%;
+            background: var(--accent-purple);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-save:hover {
+            background: #7b2cbf;
+            box-shadow: 0 4px 12px rgba(157, 78, 221, 0.3);
+        }
+
+        /* Системні показники */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .metric-val {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-pink);
+            margin-top: 4px;
+        }
+
+        .metric-lbl {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* --- Спливаючі Модалки --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #151128;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            width: 380px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn.primary {
+            background: var(--accent-purple);
+            color: #fff;
+        }
+
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- 1. ПАНЕЛЬ ВОРКСПЕЙСІВ -->
+        <div class="workspace-sidebar">
+            <div class="logo">LM</div>
+            <div class="ws-list" id="wsList">
+                <!-- Воркспейси рендеритимуться динамічно -->
+            </div>
+            <div class="ws-add-btn" onclick="openCreateWsModal()">+</div>
+        </div>
+
+        <!-- 2. ПАНЕЛЬ ДЖЕРЕЛ -->
+        <div class="sources-panel">
+            <div class="panel-title">
+                <span>Джерела</span>
+                <button class="ws-delete-btn" id="deleteWsBtn" onclick="deleteCurrentWorkspace()">Видалити робочий простір</button>
+            </div>
+            
+            <label class="upload-zone" id="dropzone">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto; color: var(--accent-purple);">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                <p>Завантажити файли (.txt, .md)</p>
+                <input type="file" id="fileUpload" multiple accept=".txt,.md" onchange="uploadFiles(this.files)">
+            </label>
+
+            <div class="sources-list" id="sourcesList">
+                <!-- Файли рендеритимуться динамічно -->
+            </div>
+        </div>
+
+        <!-- 3. ЦЕНТРАЛЬНИЙ ЧАТ -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-title-info">
+                    <h3 id="currentWsName">default</h3>
+                    <p>Локальна база знань NotebookLM</p>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant">
+                    Привіт! Завантажте файли у джерела та задайте питання. Я згенерую відповідь, посилаючись виключно на ваші дані.
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <textarea class="chat-input" id="chatInput" placeholder="Задати запитання за джерелами..." rows="1" onkeydown="handleChatSubmit(event)"></textarea>
+                    <button class="send-btn" onclick="submitMessage()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. ПАНЕЛЬ НАЛАШТУВАНЬ -->
+        <div class="settings-panel">
+            <div class="settings-section">
+                <div class="section-title">Конфігурація моделей</div>
+                
+                <div class="form-group">
+                    <label>Провайдер</label>
+                    <select class="form-select" id="modelProvider" onchange="toggleProviderFields()">
+                        <option value="local">Local GGUF (Metal API)</option>
+                        <option value="openai">OpenAI Compatible Cloud (DeepSeek/etc)</option>
+                    </select>
+                </div>
+
+                <!-- Локальні налаштування -->
+                <div id="localFields">
+                    <div class="form-group">
+                        <label>Шлях до локальної GGUF моделі</label>
+                        <input type="text" class="form-input" id="localModelPath" placeholder="models/Qwen2.5-3B-Instruct-Q4_K_M.gguf">
+                    </div>
+                </div>
+
+                <!-- Хмарні налаштування -->
+                <div id="cloudFields" style="display: none;">
+                    <div class="form-group">
+                        <label>Base URL</label>
+                        <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.deepseek.com/v1">
+                    </div>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label>Назва моделі (Model ID)</label>
+                        <input type="text" class="form-input" id="openaiModelName" placeholder="deepseek-chat">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Поріг Strict Grounding (RRF Score)</label>
+                    <input type="range" min="0.001" max="0.05" step="0.001" id="rrfThreshold" style="accent-color: var(--accent-purple);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted);">
+                        <span>0.001 (М'який)</span>
+                        <span id="thresholdVal">0.015</span>
+                        <span>0.050 (Суворий)</span>
+                    </div>
+                </div>
+
+                <button class="btn-save" onclick="saveSettings()">Зберегти налаштування</button>
+            </div>
+
+            <div class="settings-section">
+                <div class="section-title">Системна статистика</div>
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-val" id="statSources">0</div>
+                        <div class="metric-lbl">Джерел</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="statChunks">0</div>
+                        <div class="metric-lbl">Чанків</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="statGraph">0</div>
+                        <div class="metric-lbl">Зв'язків графа</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="statRam">0 MB</div>
+                        <div class="metric-lbl">Використання RAM</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Модалка створення воркспейсу -->
+    <div class="modal-overlay" id="createWsModal">
+        <div class="modal">
+            <h3>Створити новий робочий простір</h3>
+            <div class="form-group">
+                <label>Назва воркспейсу</label>
+                <input type="text" class="form-input" id="newWsName" placeholder="Напр. python_project">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn secondary" onclick="closeCreateWsModal()">Скасувати</button>
+                <button class="btn primary" onclick="createWorkspace()">Створити</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "";
+        let currentWorkspace = "default";
+
+        // Запуск
+        window.addEventListener("DOMContentLoaded", () => {
+            loadWorkspaces();
+            
+            // drag and drop dropzone
+            const dropzone = document.getElementById("dropzone");
+            dropzone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropzone.style.borderColor = "var(--accent-pink)";
+            });
+            dropzone.addEventListener("dragleave", () => {
+                dropzone.style.borderColor = "rgba(255,255,255,0.1)";
+            });
+            dropzone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropzone.style.borderColor = "rgba(255,255,255,0.1)";
+                if (e.dataTransfer.files.length > 0) {
+                    uploadFiles(e.dataTransfer.files);
+                }
+            });
+
+            // Рендер повзунка
+            const slider = document.getElementById("rrfThreshold");
+            const val = document.getElementById("thresholdVal");
+            slider.addEventListener("input", (e) => {
+                val.innerText = e.target.value;
+            });
+        });
+
+        // Завантаження списку воркспейсів
+        async function loadWorkspaces() {
+            try {
+                const res = await fetch("/api/workspaces");
+                const data = await res.json();
+                const wsList = document.getElementById("wsList");
+                wsList.innerHTML = "";
+                
+                currentWorkspace = data.active_workspace;
+                document.getElementById("currentWsName").innerText = currentWorkspace;
+
+                data.workspaces.forEach(ws => {
+                    const el = document.createElement("div");
+                    el.className = `ws-item ${ws === currentWorkspace ? 'active' : ''}`;
+                    el.innerText = ws.substring(0, 2);
+                    el.title = ws;
+                    el.onclick = () => switchWorkspace(ws);
+                    wsList.appendChild(el);
+                });
+
+                loadWorkspaceData();
+            } catch (e) {
+                console.error("Помилка завантаження воркспейсів", e);
+            }
+        }
+
+        // Перемикання воркспейсу
+        async function switchWorkspace(wsName) {
+            try {
+                await fetch("/api/active_workspace", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: wsName })
+                });
+                loadWorkspaces();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Створення воркспейсу
+        async function createWorkspace() {
+            const nameInput = document.getElementById("newWsName");
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            try {
+                const res = await fetch("/api/workspaces", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: name })
+                });
+                if (res.ok) {
+                    nameInput.value = "";
+                    closeCreateWsModal();
+                    loadWorkspaces();
+                } else {
+                    const err = await res.json();
+                    alert("Помилка: " + err.detail);
+                }
+            } catch (e) {
+                alert("Не вдалося створити воркспейс.");
+            }
+        }
+
+        // Видалення поточного воркспейсу
+        async function deleteCurrentWorkspace() {
+            if (currentWorkspace === "default") {
+                alert("Неможливо видалити воркспейс default.");
+                return;
+            }
+            if (!confirm(`Ви впевнені, що хочете видалити воркспейс "${currentWorkspace}" та всі його дані?`)) return;
+
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}`, {
+                    method: "DELETE"
+                });
+                if (res.ok) {
+                    loadWorkspaces();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Завантаження джерел, налаштувань та статистики
+        async function loadWorkspaceData() {
+            loadSources();
+            loadSettings();
+            loadStatus();
+        }
+
+        // Завантаження джерел
+        async function loadSources() {
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/sources`);
+                const data = await res.json();
+                const list = document.getElementById("sourcesList");
+                list.innerHTML = "";
+
+                if (data.sources.length === 0) {
+                    list.innerHTML = `<div style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 20px;">Немає джерел</div>`;
+                    return;
+                }
+
+                data.sources.forEach(src => {
+                    const el = document.createElement("div");
+                    el.className = "source-item";
+                    el.innerHTML = `
+                        <div class="source-info">
+                            <span class="source-name" title="${src.name}">${src.name}</span>
+                            <span class="source-meta">${src.chunks_count} чанків</span>
+                        </div>
+                        <button class="source-delete" onclick="deleteSource('${src.name}')">×</button>
+                    `;
+                    list.appendChild(el);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Видалення джерела
+        async function deleteSource(name) {
+            if (!confirm(`Видалити джерело "${name}"?`)) return;
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/sources/${name}`, {
+                    method: "DELETE"
+                });
+                if (res.ok) {
+                    loadWorkspaceData();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Завантаження налаштувань моделі
+        async function loadSettings() {
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/config`);
+                const data = await res.json();
+
+                document.getElementById("modelProvider").value = data.provider;
+                document.getElementById("localModelPath").value = data.local_model_path || "";
+                document.getElementById("openaiBaseUrl").value = data.openai_base_url || "";
+                document.getElementById("openaiApiKey").value = data.openai_api_key || "";
+                document.getElementById("openaiModelName").value = data.openai_model_name || "";
+                document.getElementById("rrfThreshold").value = data.rrf_threshold || 0.015;
+                document.getElementById("thresholdVal").innerText = data.rrf_threshold || 0.015;
+
+                toggleProviderFields();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Збереження налаштувань
+        async function saveSettings() {
+            const provider = document.getElementById("modelProvider").value;
+            const settings = {
+                provider: provider,
+                local_model_path: document.getElementById("localModelPath").value,
+                openai_base_url: document.getElementById("openaiBaseUrl").value,
+                openai_api_key: document.getElementById("openaiApiKey").value,
+                openai_model_name: document.getElementById("openaiModelName").value,
+                rrf_threshold: parseFloat(document.getElementById("rrfThreshold").value),
+                context_size: 8192
+            };
+
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/settings`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(settings)
+                });
+                if (res.ok) {
+                    alert("Налаштування воркспейсу збережено!");
+                    loadWorkspaceData();
+                }
+            } catch (e) {
+                alert("Помилка збереження налаштувань.");
+            }
+        }
+
+        // Завантаження статусу / показників
+        async function loadStatus() {
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/status`);
+                const data = await res.json();
+
+                document.getElementById("statSources").innerText = data.statistics.sources_count;
+                document.getElementById("statChunks").innerText = data.statistics.chunks_count;
+                document.getElementById("statGraph").innerText = data.statistics.relationships_count;
+                document.getElementById("statRam").innerText = `${data.system.ram_usage_mb} MB`;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Перемикання полів форми вводу конфігу
+        function toggleProviderFields() {
+            const provider = document.getElementById("modelProvider").value;
+            if (provider === "local") {
+                document.getElementById("localFields").style.display = "block";
+                document.getElementById("cloudFields").style.display = "none";
+            } else {
+                document.getElementById("localFields").style.display = "none";
+                document.getElementById("cloudFields").style.display = "block";
+            }
+        }
+
+        // Завантаження файлів
+        async function uploadFiles(filesList) {
+            if (filesList.length === 0) return;
+            
+            const formData = new FormData();
+            for (let i = 0; i < filesList.length; i++) {
+                formData.append("files", filesList[i]);
+            }
+
+            const loaderId = addMessage("assistant", "Завантаження та структурування файлів, будь ласка зачекайте...");
+
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/upload`, {
+                    method: "POST",
+                    body: formData
+                });
+                if (res.ok) {
+                    updateMessage(loaderId, "Файли успішно завантажено, проіндексовано та додано до бази знань воркспейсу.");
+                    loadWorkspaceData();
+                } else {
+                    const err = await res.json();
+                    updateMessage(loaderId, "Помилка при обробці файлів: " + err.detail);
+                }
+            } catch (e) {
+                updateMessage(loaderId, "Не вдалося виконати завантаження.");
+            }
+        }
+
+        // Надсилання запитів
+        async function submitMessage() {
+            const input = document.getElementById("chatInput");
+            const query = input.value.trim();
+            if (!query) return;
+
+            input.value = "";
+            addMessage("user", query);
+            const loaderId = addMessage("assistant", "Шукаю факти у базі знань воркспейсу...");
+
+            try {
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/query`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await res.json();
+
+                let html = data.response;
+                
+                // Додаємо цитати, якщо вони є
+                if (data.context && data.context.length > 0 && data.response !== "[NO_CONTEXT_FOUND]") {
+                    html += `<div class="message-citations">`;
+                    const uniqueSources = [...new Set(data.context.map(c => c.file_name))];
+                    uniqueSources.forEach(src => {
+                        html += `<span class="citation-tag" onclick="showSourceContext('${src}')">[[${src}]]</span>`;
+                    });
+                    html += `</div>`;
+                }
+
+                updateMessageHTML(loaderId, html);
+                loadStatus(); // оновлюємо RAM
+            } catch (e) {
+                updateMessage(loaderId, "Сталася помилка при отриманні відповіді від сервера.");
+            }
+        }
+
+        // Рендер цитованих джерел у Playground (можна додати опис блоків у алерт)
+        function showSourceContext(sourceName) {
+            alert(`Це джерело: ${sourceName}. Ви можете видалити його або переглянути статистику у лівій панелі.`);
+        }
+
+        // Обробка Enter в полі вводу
+        function handleChatSubmit(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submitMessage();
+            }
+        }
+
+        // Робота з повідомленнями
+        let msgIdCounter = 0;
+        function addMessage(sender, text) {
+            const id = `msg-${msgIdCounter++}`;
+            const chat = document.getElementById("chatMessages");
+            const el = document.createElement("div");
+            el.className = `message ${sender}`;
+            el.id = id;
+            el.innerText = text;
+            chat.appendChild(el);
+            chat.scrollTop = chat.scrollHeight;
+            return id;
+        }
+
+        function updateMessage(id, newText) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.innerText = newText;
+                const chat = document.getElementById("chatMessages");
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        function updateMessageHTML(id, html) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.innerHTML = html;
+                const chat = document.getElementById("chatMessages");
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        // Модалки
+        function openCreateWsModal() {
+            document.getElementById("createWsModal").classList.add("active");
+            document.getElementById("newWsName").focus();
+        }
+
+        function closeCreateWsModal() {
+            document.getElementById("createWsModal").classList.remove("active");
+        }
+    </script>
+</body>
+</html>
