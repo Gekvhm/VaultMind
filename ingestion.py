@@ -86,11 +86,15 @@ class DocumentIngester:
             
             # Спроба вирівняти кінець чанку по реченню або абзацу
             if end < text_len:
-                # Шукаємо останню крапку чи перенесення рядка у кінці вікна
-                search_area = text[end - 150 : end]
+                # Обмежуємо зону пошуку крапки, щоб вона не заходила за поточний start
+                search_limit = max(start, end - 150)
+                search_area = text[search_limit : end]
                 match = re.search(r'[\.\?\!\n]', search_area[::-1])
                 if match:
-                    end = end - match.start()
+                    new_end = end - match.start()
+                    # Переконуємося, що новий end просунувся вперед порівняно з start
+                    if new_end > start + 50:
+                        end = new_end
             
             chunk_content = text[start:end].strip()
             
@@ -115,9 +119,17 @@ class DocumentIngester:
                 "entities": list(set(chunk_entities))
             })
             
-            start = end - self.chunk_overlap
-            if start >= text_len - 50: # Занадто малий залишок
+            # Обчислюємо наступний start
+            next_start = end - self.chunk_overlap
+            
+            # Гарантуємо рух вперед та запобігаємо зацикленню
+            if next_start <= start:
+                next_start = start + (self.chunk_size - self.chunk_overlap)
+                
+            if next_start >= text_len - 50 or next_start >= text_len:
                 break
+                
+            start = next_start
                 
         return chunks
 

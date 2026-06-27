@@ -19,8 +19,8 @@ class LLMInferenceManager:
         print("Завантаження моделі Qwen2.5-14B-Instruct-Abliterated (Q4_K_M)...")
         # Використовуємо перевірений репозиторій bartowski або mradermacher
         self.model_path = hf_hub_download(
-            repo_id="bartowski/Qwen2.5-14B-Instruct-Abliterated-GGUF",
-            filename="Qwen2.5-14B-Instruct-Abliterated-Q4_K_M.gguf",
+            repo_id="bartowski/Qwen2.5-Coder-14B-Instruct-abliterated-GGUF",
+            filename="Qwen2.5-Coder-14B-Instruct-abliterated-Q4_K_M.gguf",
             local_dir="models"
         )
         return self.model_path

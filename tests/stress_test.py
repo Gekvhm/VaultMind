@@ -136,6 +136,9 @@ def run_stress_test():
         
         # Пошук контексту
         chunks = manager.hybrid_search_rrf(q["query"], limit=5)
+        print(f"Знайдено чанків: {len(chunks)}")
+        for idx, c in enumerate(chunks):
+            print(f"  Чанк {idx+1}: score={c['score']:.6f}, content={c['content'][:50]}...")
         
         # Генерація
         response = inference_manager.generate_response(q["query"], chunks)
