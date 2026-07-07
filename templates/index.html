@@ -761,10 +761,16 @@
             });
         });
 
+        // Автентифікація — ключ вбудовується сервером через <script>
+        function authHeaders() {
+            const key = window.__VAULTMIND_API_KEY__ || "";
+            return { "Authorization": `Bearer ${key}` };
+        }
+
         // Завантаження списку воркспейсів
         async function loadWorkspaces() {
             try {
-                const res = await fetch("/api/workspaces");
+                const res = await fetch("/api/workspaces", { headers: authHeaders() });
                 const data = await res.json();
                 const wsList = document.getElementById("wsList");
                 wsList.innerHTML = "";
@@ -793,7 +799,7 @@
             try {
                 await fetch("/api/active_workspace", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", ...authHeaders() },
                     body: JSON.stringify({ name: wsName })
                 });
                 loadWorkspaces();
@@ -811,7 +817,7 @@
             try {
                 const res = await fetch("/api/workspaces", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", ...authHeaders() },
                     body: JSON.stringify({ name: name })
                 });
                 if (res.ok) {
@@ -837,7 +843,8 @@
 
             try {
                 const res = await fetch(`/api/workspaces/${currentWorkspace}`, {
-                    method: "DELETE"
+                    method: "DELETE",
+                    headers: authHeaders()
                 });
                 if (res.ok) {
                     loadWorkspaces();
@@ -857,7 +864,7 @@
         // Завантаження джерел
         async function loadSources() {
             try {
-                const res = await fetch(`/api/workspaces/${currentWorkspace}/sources`);
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/sources`, { headers: authHeaders() });
                 const data = await res.json();
                 const list = document.getElementById("sourcesList");
                 list.innerHTML = "";
@@ -889,7 +896,8 @@
             if (!confirm(`Видалити джерело "${name}"?`)) return;
             try {
                 const res = await fetch(`/api/workspaces/${currentWorkspace}/sources/${name}`, {
-                    method: "DELETE"
+                    method: "DELETE",
+                    headers: authHeaders()
                 });
                 if (res.ok) {
                     loadWorkspaceData();
@@ -902,7 +910,7 @@
         // Завантаження налаштувань моделі
         async function loadSettings() {
             try {
-                const res = await fetch(`/api/workspaces/${currentWorkspace}/config`);
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/config`, { headers: authHeaders() });
                 const data = await res.json();
 
                 document.getElementById("modelProvider").value = data.provider;
@@ -935,7 +943,7 @@
             try {
                 const res = await fetch(`/api/workspaces/${currentWorkspace}/settings`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", ...authHeaders() },
                     body: JSON.stringify(settings)
                 });
                 if (res.ok) {
@@ -950,7 +958,7 @@
         // Завантаження статусу / показників
         async function loadStatus() {
             try {
-                const res = await fetch(`/api/workspaces/${currentWorkspace}/status`);
+                const res = await fetch(`/api/workspaces/${currentWorkspace}/status`, { headers: authHeaders() });
                 const data = await res.json();
 
                 document.getElementById("statSources").innerText = data.statistics.sources_count;
@@ -988,6 +996,7 @@
             try {
                 const res = await fetch(`/api/workspaces/${currentWorkspace}/upload`, {
                     method: "POST",
+                    headers: authHeaders(),
                     body: formData
                 });
                 if (res.ok) {
@@ -1015,7 +1024,7 @@
             try {
                 const res = await fetch(`/api/workspaces/${currentWorkspace}/query`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", ...authHeaders() },
                     body: JSON.stringify({ query: query })
                 });
                 const data = await res.json();

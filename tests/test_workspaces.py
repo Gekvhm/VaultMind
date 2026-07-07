@@ -2,11 +2,11 @@ import os
 import shutil
 import unittest
 from fastapi.testclient import TestClient
-from server import app
+from server import app, API_KEY
 
 class TestWorkspaceAPI(unittest.TestCase):
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = TestClient(app, headers={"Authorization": f"Bearer {API_KEY}"})
         self.test_ws_name_a = "tmp_ws_test_a"
         self.test_ws_name_b = "tmp_ws_test_b"
 

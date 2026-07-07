@@ -28,6 +28,7 @@ tests/results/
 # Environment variables
 .env
 .env.*
+.vaultmind_key
 
 # Development artifacts
 scratch/

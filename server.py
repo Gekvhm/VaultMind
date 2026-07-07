@@ -3,12 +3,13 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 
 import psutil
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,45 @@ from inference import LLMInferenceManager
 from formatter import KnowledgeFormatter
 
 logger = logging.getLogger(__name__)
+
+# --- Автентифікація через API-ключ ---
+API_KEY_FILE = ".vaultmind_key"
+
+
+def _load_or_generate_api_key() -> str:
+    """Завантажує API-ключ з файлу або генерує новий при першому запуску."""
+    if os.path.exists(API_KEY_FILE):
+        with open(API_KEY_FILE, "r", encoding="utf-8") as f:
+            key = f.read().strip()
+            if key:
+                return key
+    key = f"vm-{secrets.token_urlsafe(32)}"
+    with open(API_KEY_FILE, "w", encoding="utf-8") as f:
+        f.write(key)
+    os.chmod(API_KEY_FILE, 0o600)
+    logger.info("Згенеровано новий API-ключ: %s", API_KEY_FILE)
+    return key
+
+
+API_KEY = _load_or_generate_api_key()
+
+
+async def verify_api_key(request: Request) -> None:
+    """Перевіряє API-ключ з заголовків Authorization (Bearer) або X-API-Key."""
+    auth_header = request.headers.get("Authorization", "")
+    api_key_header = request.headers.get("X-API-Key", "")
+
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    elif api_key_header:
+        token = api_key_header
+
+    if not secrets.compare_digest(token, API_KEY):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key. Use 'Authorization: Bearer <key>' or 'X-API-Key: <key>' header.",
+        )
 
 app = FastAPI(
     title="VaultMind API",
@@ -130,7 +170,7 @@ def load_workspace_config(ws_id: str) -> dict:
 # --- Ендпоінти управління воркспейсами ---
 
 @app.get("/api/workspaces")
-def list_workspaces() -> dict:
+def list_workspaces(_: None = Depends(verify_api_key)) -> dict:
     """Повертає список усіх наявних воркспейсів."""
     ensure_default_workspace()
     workspaces = []
@@ -141,7 +181,7 @@ def list_workspaces() -> dict:
     return {"workspaces": sorted(workspaces), "active_workspace": ACTIVE_WORKSPACE}
 
 @app.post("/api/active_workspace")
-def set_active_workspace(ws: WorkspaceCreate) -> dict:
+def set_active_workspace(ws: WorkspaceCreate, _: None = Depends(verify_api_key)) -> dict:
     """Встановлює активний воркспейс по замовчуванню."""
     global ACTIVE_WORKSPACE
     ws_path = get_workspace_path(ws.name)
@@ -151,7 +191,7 @@ def set_active_workspace(ws: WorkspaceCreate) -> dict:
     return {"status": "success", "active_workspace": ACTIVE_WORKSPACE}
 
 @app.post("/api/workspaces")
-def create_workspace(ws: WorkspaceCreate) -> dict:
+def create_workspace(ws: WorkspaceCreate, _: None = Depends(verify_api_key)) -> dict:
     """Створює новий воркспейс та ініціалізує його структуру."""
     if not ws.name.strip():
         raise HTTPException(status_code=400, detail="Назва воркспейсу не може бути порожньою.")
@@ -195,7 +235,7 @@ def create_workspace(ws: WorkspaceCreate) -> dict:
         raise HTTPException(status_code=500, detail=f"Не вдалося створити воркспейс: {str(e)}")
 
 @app.delete("/api/workspaces/{ws_id}")
-def delete_workspace(ws_id: str) -> dict:
+def delete_workspace(ws_id: str, _: None = Depends(verify_api_key)) -> dict:
     """Повністю видаляє воркспейс та його дані."""
     if ws_id == "default":
         raise HTTPException(status_code=400, detail="Неможливо видалити воркспейс по замовчуванню (default).")
@@ -216,7 +256,7 @@ def delete_workspace(ws_id: str) -> dict:
 # --- Ендпоінти роботи всередині воркспейсу ---
 
 @app.get("/api/workspaces/{ws_id}/status")
-def get_workspace_status(ws_id: str) -> dict:
+def get_workspace_status(ws_id: str, _: None = Depends(verify_api_key)) -> dict:
     """Повертає статистику бази знань та параметри воркспейсу."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
@@ -268,12 +308,12 @@ def get_workspace_status(ws_id: str) -> dict:
     }
 
 @app.get("/api/workspaces/{ws_id}/config")
-def get_config(ws_id: str) -> dict:
+def get_config(ws_id: str, _: None = Depends(verify_api_key)) -> dict:
     """Повертає конфігурацію воркспейсу."""
     return load_workspace_config(ws_id)
 
 @app.post("/api/workspaces/{ws_id}/settings")
-def update_settings(ws_id: str, settings: SettingsUpdate) -> dict:
+def update_settings(ws_id: str, settings: SettingsUpdate, _: None = Depends(verify_api_key)) -> dict:
     """Оновлює конфігурацію воркспейсу."""
     ws_path = get_workspace_path(ws_id)
     cfg_file = os.path.join(ws_path, "config.json")
@@ -298,7 +338,7 @@ def update_settings(ws_id: str, settings: SettingsUpdate) -> dict:
         raise HTTPException(status_code=500, detail=f"Помилка при оновленні налаштувань: {str(e)}")
 
 @app.get("/api/workspaces/{ws_id}/sources")
-def list_sources(ws_id: str) -> dict:
+def list_sources(ws_id: str, _: None = Depends(verify_api_key)) -> dict:
     """Повертає список усіх проіндексованих файлів у воркспейсі."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
@@ -329,7 +369,7 @@ def list_sources(ws_id: str) -> dict:
     return {"sources": sources}
 
 @app.delete("/api/workspaces/{ws_id}/sources/{source_name}")
-def delete_source(ws_id: str, source_name: str) -> dict:
+def delete_source(ws_id: str, source_name: str, _: None = Depends(verify_api_key)) -> dict:
     """Видаляє джерело з Obsidian Vault та очищує його чанки й сутності з БД."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
@@ -390,7 +430,7 @@ def delete_source(ws_id: str, source_name: str) -> dict:
     return {"status": "success", "message": "Дані вилучено з бази, файл не був знайдений на диску."}
 
 @app.post("/api/workspaces/{ws_id}/upload")
-async def upload_files(ws_id: str, files: List[UploadFile] = File(...)) -> dict:
+async def upload_files(ws_id: str, files: List[UploadFile] = File(...), _: None = Depends(verify_api_key)) -> dict:
     """Завантажує сирі файли у воркспейс, структурує їх та автоматично індексує."""
     ws_path = get_workspace_path(ws_id)
     if not os.path.exists(ws_path):
@@ -430,7 +470,7 @@ async def upload_files(ws_id: str, files: List[UploadFile] = File(...)) -> dict:
         raise HTTPException(status_code=500, detail=f"Помилка конвеєра структурування: {str(e)}")
 
 @app.post("/api/workspaces/{ws_id}/query")
-def query_workspace(ws_id: str, req: QueryRequest) -> dict:
+def query_workspace(ws_id: str, req: QueryRequest, _: None = Depends(verify_api_key)) -> dict:
     """Пошук фактів та генерація відповіді в межах конкретного воркспейсу."""
     ws_path = get_workspace_path(ws_id)
     if not os.path.exists(ws_path):
@@ -474,7 +514,7 @@ def run_rag_inference(ws_id: str, user_query: str) -> str:
     return inference.generate_response(user_query, chunks)
 
 @app.post("/v1/chat/completions")
-def openai_chat_completions_active(req: ChatCompletionRequest) -> dict:
+def openai_chat_completions_active(req: ChatCompletionRequest, _: None = Depends(verify_api_key)) -> dict:
     """OpenAI-сумісний інтерфейс RAG для АКТИВНОГО воркспейсу."""
     global ACTIVE_WORKSPACE
     ensure_default_workspace()
@@ -499,7 +539,7 @@ def openai_chat_completions_active(req: ChatCompletionRequest) -> dict:
     }
 
 @app.post("/workspaces/{ws_id}/v1/chat/completions")
-def openai_chat_completions_specific(ws_id: str, req: ChatCompletionRequest) -> dict:
+def openai_chat_completions_specific(ws_id: str, req: ChatCompletionRequest, _: None = Depends(verify_api_key)) -> dict:
     """OpenAI-сумісний інтерфейс RAG для КОНКРЕТНОГО воркспейсу."""
     user_query = req.messages[-1].content
     
@@ -524,19 +564,23 @@ def openai_chat_completions_specific(ws_id: str, req: ChatCompletionRequest) -> 
 # Маршрутизація UI (Static Files)
 @app.get("/", response_class=HTMLResponse)
 def read_root() -> HTMLResponse:
-    """Повертає головну HTML-сторінку веб-інтерфейсу."""
+    """Повертає головну HTML-сторінку веб-інтерфейсу з вбудованим API-ключем."""
     index_html_path = "templates/index.html"
     if os.path.exists(index_html_path):
         with open(index_html_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return """
+            html = f.read()
+        # Вбудовуємо API-ключ у HTML для автоматичної автентифікації UI
+        key_script = f'<script>window.__VAULTMIND_API_KEY__ = "{API_KEY}";</script>'
+        html = html.replace("</head>", f"{key_script}\n</head>", 1)
+        return HTMLResponse(content=html)
+    return HTMLResponse(content="""
     <html>
-        <head><title>NotebookLM UI</title></head>
+        <head><title>VaultMind UI</title></head>
         <body>
             <h2>Dashboard HTML templates/index.html is missing.</h2>
         </body>
     </html>
-    """
+    """)
 
 if os.path.exists("templates"):
     app.mount("/static", StaticFiles(directory="templates"), name="static")
