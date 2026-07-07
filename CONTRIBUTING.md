@@ -7,7 +7,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/vaultmind.git
+   git clone https://github.com/Gekvhm/vaultmind.git
    cd vaultmind
    ```
 
@@ -77,7 +77,7 @@ Tests live in the `tests/` directory. Add tests for any new functionality.
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/YOUR_USERNAME/vaultmind/issues).
+- Use [GitHub Issues](https://github.com/Gekvhm/vaultmind/issues).
 - Include: macOS version, Python version, steps to reproduce, expected vs actual behavior.
 - For model-related issues, include the model name and `llama-cpp-python` version.
 

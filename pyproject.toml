@@ -50,9 +50,9 @@ cloud = [
 vaultmind = "cli:main"
 
 [project.urls]
-Homepage = "https://github.com/YOUR_USERNAME/vaultmind"
-Repository = "https://github.com/YOUR_USERNAME/vaultmind"
-Issues = "https://github.com/YOUR_USERNAME/vaultmind/issues"
+Homepage = "https://github.com/Gekvhm/vaultmind"
+Repository = "https://github.com/Gekvhm/vaultmind"
+Issues = "https://github.com/Gekvhm/vaultmind/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

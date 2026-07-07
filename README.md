@@ -54,7 +54,7 @@ graph TD
 
 ```bash
 # 1. Clone & setup environment
-git clone https://github.com/YOUR_USERNAME/vaultmind.git
+git clone https://github.com/Gekvhm/vaultmind.git
 cd vaultmind
 ./setup_env.sh
 
