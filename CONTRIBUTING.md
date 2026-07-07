@@ -18,7 +18,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
    ./setup_env.sh
    ```
 
-   This will create a virtual environment, install dependencies (including Metal-accelerated `llama-cpp-python`), and download the default model.
+   This will create a virtual environment, install dependencies (including GPU-accelerated `llama-cpp-python`), and download the default model.
 
 3. **Activate the environment:**
 

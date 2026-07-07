@@ -1,0 +1,92 @@
+# ============================================================
+# VaultMind — Multi-stage Docker build (NVIDIA CUDA GPU)
+# ============================================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.cuda.yml up -d
+# ============================================================
+
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.12 via deadsnakes PPA + build deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    build-essential \
+    cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set python3.12 as default python3
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+WORKDIR /build
+
+# Bootstrap pip for Python 3.12
+RUN python3 -m ensurepip --upgrade && python3 -m pip install --upgrade pip setuptools wheel
+
+COPY requirements.txt .
+
+# Install Python deps; compile llama-cpp-python with CUDA support
+RUN pip install --no-cache-dir --prefix=/install \
+    numpy==1.26.4 \
+    huggingface-hub==0.23.0 \
+    psutil==5.9.8 \
+    fastapi==0.111.0 \
+    uvicorn==0.30.1 \
+    python-multipart==0.0.9 \
+    openai==1.30.1 \
+    python-docx==1.2.0 \
+    && CMAKE_ARGS="-DGGML_CUDA=on" \
+       pip install --no-cache-dir --prefix=/install llama-cpp-python==0.2.76
+
+# -----------------------------------------------------------
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+LABEL maintainer="VaultMind Contributors"
+LABEL description="Privacy-first local RAG system with Knowledge Graph (CUDA GPU)"
+
+# Install Python 3.12 runtime via deadsnakes PPA
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+# Copy installed Python packages from builder
+COPY --from=builder /install /usr/local
+
+WORKDIR /app
+
+# Copy application source
+COPY ingestion.py indexing.py inference.py formatter.py \
+     server.py cli.py ./
+COPY templates/ ./templates/
+
+# Create directories for runtime data
+RUN mkdir -p workspaces models raw_inputs
+
+# Non-root user for security
+RUN useradd --create-home --shell /bin/bash vaultmind \
+    && chown -R vaultmind:vaultmind /app
+USER vaultmind
+
+# Volumes for persistent data
+VOLUME ["/app/workspaces", "/app/models"]
+
+EXPOSE 8001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/')" || exit 1
+
+ENTRYPOINT ["python3", "-m", "uvicorn", "server:app"]
+CMD ["--host", "0.0.0.0", "--port", "8001"]

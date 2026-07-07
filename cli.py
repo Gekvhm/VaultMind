@@ -120,7 +120,7 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
     parser = argparse.ArgumentParser(
-        description="Локальна RAG-система з нульовим витоком знань та Metal прискоренням"
+        description="Локальна RAG-система з нульовим витоком знань та GPU прискоренням"
     )
     parser.add_argument(
         "--db", 

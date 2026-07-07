@@ -1,0 +1,14 @@
+# Override for NVIDIA GPU support
+# Usage: docker compose -f docker-compose.yml -f docker-compose.cuda.yml up -d
+services:
+  vaultmind:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

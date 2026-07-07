@@ -2,10 +2,10 @@
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
-![macOS Apple Silicon](https://img.shields.io/badge/macOS-Apple%20Silicon-purple)
+![GPU Support](https://img.shields.io/badge/GPU-CUDA%20%7C%20Metal%20%7C%20ROCm-purple)
 ![Status Alpha](https://img.shields.io/badge/status-alpha-orange)
 
-**Privacy-first local RAG system with Knowledge Graph for macOS Apple Silicon.** Your documents never leave your Mac. Hybrid search combines Vector embeddings, BM25 full-text, and Knowledge Graph with Reciprocal Rank Fusion for precise, citation-backed answers.
+**Privacy-first local RAG system with Knowledge Graph with GPU acceleration.** Your documents never leave your machine. Hybrid search combines Vector embeddings, BM25 full-text, and Knowledge Graph with Reciprocal Rank Fusion for precise, citation-backed answers.
 
 <p align="center">
   <img src="docs/images/vaultmind-hero.jpg" alt="VaultMind Web UI" width="800">
@@ -15,9 +15,9 @@
 
 ## ✨ Key Features
 
-- 🔒 **100% Local** — data never leaves your Mac, zero cloud dependency
+- 🔒 **100% Local** — data never leaves your machine, zero cloud dependency
 - 🧠 **Hybrid RAG** — Vector + BM25 + Knowledge Graph with RRF fusion and graph boosting
-- ⚡ **Apple Silicon Metal GPU** — native acceleration via llama.cpp
+- ⚡ **GPU Accelerated** — CUDA, Metal (Apple Silicon), ROCm via llama.cpp
 - 📝 **Obsidian-native** — wiki-links, YAML frontmatter, auto-linking concepts
 - 🔄 **Auto-structuring** — raw text → structured Obsidian notes via LLM
 - 📦 **Workspace isolation** — separate knowledge bases per project
@@ -36,7 +36,7 @@ graph TD
     ING["ingestion.py<br/>Document Parser<br/>Chunking · Entity Extraction"]
     FMT["formatter.py<br/>Auto-Structuring<br/>Raw → Obsidian Notes"]
     IDX["indexing.py<br/>Hybrid Index<br/>FTS5 · Vectors · Knowledge Graph"]
-    INF["inference.py<br/>LLM Engine<br/>llama.cpp Metal · OpenAI API"]
+    INF["inference.py<br/>LLM Engine<br/>llama.cpp GPU · OpenAI API"]
 
     CLI --> ING
     CLI --> FMT
@@ -65,16 +65,17 @@ cd vaultmind
 open http://localhost:8001
 ```
 
-> **Note:** First run downloads ~2.2 GB of models (Qwen2.5-3B + nomic-embed-text) and compiles llama.cpp with Metal support. Requires Xcode Command Line Tools.
+> **Note:** First run downloads ~2.2 GB of models (Qwen2.5-3B + nomic-embed-text) and compiles llama.cpp with GPU support (Metal/CUDA/ROCm auto-detected).
 
-### 🐳 Docker (CPU-only)
+### 🐳 Docker
 
 ```bash
+# CPU
 docker compose up -d
-open http://localhost:8001
-```
 
-> **Warning:** Docker runs CPU-only inference (no Metal GPU). For best performance, run natively on macOS Apple Silicon.
+# NVIDIA GPU (CUDA)
+docker compose -f docker-compose.yml -f docker-compose.cuda.yml up -d
+```
 
 ---
 
@@ -172,7 +173,7 @@ Each workspace has a `config.json`:
 | Full-text Search | SQLite FTS5 (BM25) |
 | Vector Search | numpy cosine similarity |
 | Embeddings | nomic-embed-text v1.5 (GGUF) |
-| LLM Runtime | llama.cpp (Metal GPU) |
+| LLM Runtime | llama.cpp (CUDA / Metal / ROCm) |
 | Document Parsing | python-docx, regex |
 | Frontend | Vanilla HTML/CSS/JS (glassmorphic SPA) |
 

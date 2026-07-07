@@ -1,4 +1,4 @@
-"""Модуль LLM-інференсу. Підтримує локальні GGUF моделі через llama.cpp з Metal прискоренням та хмарні OpenAI-сумісні API."""
+"""Модуль LLM-інференсу. Підтримує локальні GGUF моделі через llama.cpp з GPU прискоренням (CUDA, Metal, ROCm) та хмарні OpenAI-сумісні API."""
 
 import gc
 import logging
@@ -41,7 +41,7 @@ class LLMInferenceManager:
         return self.model_path
 
     def init_llm(self) -> None:
-        """Ініціалізує LLM з Metal-прискоренням та квантованим KV Cache (Q8_0)."""
+        """Ініціалізує LLM з GPU-прискоренням та квантованим KV Cache (Q8_0)."""
         if self.config.get("provider", "local") == "openai":
             return
             
@@ -55,7 +55,7 @@ class LLMInferenceManager:
             self.llm = Llama(
                 model_path=model_file,
                 n_ctx=self.context_size,
-                n_gpu_layers=-1,       # Завантаження всіх шарів у GPU (Metal)
+                n_gpu_layers=-1,       # Завантаження всіх шарів у GPU (CUDA/Metal/ROCm)
                 use_mmap=True,         # Використання memory-mapped файлів
                 verbose=False          # Приховуємо низькорівневі логи llama.cpp
             )
@@ -119,7 +119,7 @@ class LLMInferenceManager:
         if provider == "local":
             self.init_llm()
             self.print_memory_usage()
-            logger.info("Генерація відповіді локальною LLM (Metal API)...")
+            logger.info("Генерація відповіді локальною LLM (GPU)...")
             try:
                 response = self.llm.create_chat_completion(
                     messages=messages,
@@ -197,7 +197,7 @@ type: concept
         if provider == "local":
             self.init_llm()
             self.print_memory_usage()
-            logger.info("Форматування тексту за допомогою LLM (Metal API)...")
+            logger.info("Форматування тексту за допомогою LLM (GPU)...")
             try:
                 response = self.llm.create_chat_completion(
                     messages=messages,

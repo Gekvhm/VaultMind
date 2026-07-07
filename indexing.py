@@ -104,7 +104,7 @@ class RAGIndexManager:
             )
             
         logger.info("Ініціалізація моделі ембедінгів з %s...", self.embedding_model_path)
-        # Запуск моделі ембедінгів з підтримкою Metal
+        # Запуск моделі ембедінгів з підтримкою GPU
         self.embed_model = Llama(
             model_path=self.embedding_model_path,
             embedding=True,
