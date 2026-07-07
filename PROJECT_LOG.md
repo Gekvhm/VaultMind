@@ -287,8 +287,35 @@ Description: Повний рефакторинг якості коду з вик
 - ✅ Верифікація: imports OK, CLI OK, FastAPI OK, 4/4 тестів passed
 
 ### Next Steps
-1. 🔴 Закрити CORS-вразливість (server.py)
-2. 🟡 Додати auth middleware
-3. 🟡 CI/CD (GitHub Actions: ruff + pytest)
+1. ~~🔴 Закрити CORS-вразливість (server.py)~~ ✅
+2. ~~🟡 Додати auth middleware~~ ✅
+3. ~~🟡 CI/CD (GitHub Actions: ruff + pytest)~~ ✅
 4. 🟡 Розширити тестове покриття (indexing.py, ingestion.py)
 5. 🟢 Скріншоти/GIF для README
+
+---
+
+## Session: 2026-07-07 — Security Fixes + CI/CD
+
+[2026-07-07 23:19:00] {System-Analyst} - fix(security): CORS + auth + CI/CD
+Modified files: server.py, .gitignore, templates/index.html, tests/test_workspaces.py
+New files: .github/workflows/ci.yml
+Motivation: Закриття CRITICAL-1 (CORS) та CRITICAL-2 (auth) з аудиту публікації + CI/CD.
+
+**Commits:**
+- `482ef22` — fix(security): close CRITICAL CORS vulnerability
+- `eded265` — feat(security): add API key authentication middleware
+- `f213704` — ci: add GitHub Actions CI pipeline (ruff + pytest)
+
+### Completed
+- ✅ CORS: `allow_origins=["*"]` → localhost-only whitelist, credentials=False
+- ✅ Auth: API key middleware з авто-генерацією, timing-safe comparison, 13 ендпоінтів захищено
+- ✅ UI: API key автоматично вбудовується в HTML через сервер, 11 fetch() оновлено
+- ✅ CI: GitHub Actions з ruff lint + pytest на Python 3.10/3.12
+- ✅ Тести оновлено з API-key auth
+- ✅ async keyword відновлено для upload_files
+
+### Next Steps
+1. 🟡 Розширити тестове покриття (indexing.py, ingestion.py)
+2. 🟢 Скріншоти/GIF для README
+3. 🟢 Docker support
