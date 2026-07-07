@@ -22,18 +22,25 @@ from formatter import KnowledgeFormatter
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Local NotebookLM API",
+    title="VaultMind API",
     description="REST API для управління локальними воркспейсами, джерелами та RAG-запитами",
-    version="1.0.0"
+    version="0.1.0"
 )
 
-# Налаштування CORS
+# Налаштування CORS — лише локальні джерела
+CORS_ORIGINS = [
+    "http://localhost:8001",
+    "http://127.0.0.1:8001",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_headers=["*"],
-    allow_methods=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
 )
 
 WORKSPACES_DIR = "workspaces"
