@@ -1,0 +1,16 @@
+services:
+  vaultmind:
+    build: .
+    container_name: vaultmind
+    ports:
+      - "8001:8001"
+    volumes:
+      - vaultmind-workspaces:/app/workspaces
+      - vaultmind-models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  vaultmind-workspaces:
+  vaultmind-models:

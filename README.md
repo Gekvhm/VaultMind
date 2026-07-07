@@ -67,6 +67,15 @@ open http://localhost:8001
 
 > **Note:** First run downloads ~2.2 GB of models (Qwen2.5-3B + nomic-embed-text) and compiles llama.cpp with Metal support. Requires Xcode Command Line Tools.
 
+### 🐳 Docker (CPU-only)
+
+```bash
+docker compose up -d
+open http://localhost:8001
+```
+
+> **Warning:** Docker runs CPU-only inference (no Metal GPU). For best performance, run natively on macOS Apple Silicon.
+
 ---
 
 <p align="center">
