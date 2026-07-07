@@ -6,6 +6,8 @@ import re
 import secrets
 import shutil
 import sqlite3
+import urllib.request
+from urllib.parse import urlparse
 
 import psutil
 from typing import List, Optional
@@ -150,6 +152,19 @@ class ChatCompletionRequest(BaseModel):
     messages: List[ChatMessage]
     temperature: Optional[float] = 0.0
     max_tokens: Optional[int] = 1024
+
+
+class IngestTextRequest(BaseModel):
+    """Запит на пряму інгестію тексту без файлу."""
+    text: str
+    filename: str = "untitled.md"
+    auto_structure: bool = False
+
+
+class IngestUrlRequest(BaseModel):
+    """Запит на завантаження та інгестію контенту з URL."""
+    url: str
+    filename: str = ""
 
 # --- Допоміжні функції воркспейсів ---
 def get_workspace_path(ws_id: str) -> str:
@@ -498,6 +513,162 @@ def query_workspace(ws_id: str, req: QueryRequest, _: None = Depends(verify_api_
         })
         
     return {"response": response, "context": serializable_chunks}
+
+@app.post("/api/workspaces/{ws_id}/ingest-text")
+def ingest_text(ws_id: str, req: IngestTextRequest, _: None = Depends(verify_api_key)) -> dict:
+    """Пряма інгестія тексту у воркспейс без завантаження файлу."""
+    ws_path = get_workspace_path(ws_id)
+    if not os.path.exists(ws_path):
+        raise HTTPException(status_code=404, detail="Воркспейс не знайдено.")
+
+    config = load_workspace_config(ws_id)
+    vault_dir = os.path.join(ws_path, "vault")
+    db_path = os.path.join(ws_path, "rag_storage.db")
+
+    safe_filename = re.sub(r'[^\w\-\.]', '_', req.filename)
+    if not safe_filename.endswith(('.md', '.txt')):
+        safe_filename += '.md'
+
+    if req.auto_structure:
+        # Зберігаємо у raw_inputs та пропускаємо через KnowledgeFormatter
+        raw_inputs_dir = os.path.join(ws_path, "raw_inputs")
+        file_path = os.path.join(raw_inputs_dir, safe_filename)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(req.text)
+        try:
+            formatter = KnowledgeFormatter(db_path=db_path, llm_config=config)
+            formatter.process_raw_data(input_path=file_path, vault_dir=vault_dir, auto_ingest=True)
+            return {"status": "success", "filename": safe_filename, "mode": "structured"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Помилка структурування: {str(e)}")
+    else:
+        # Прямий запис у vault та індексація
+        file_path = os.path.join(vault_dir, safe_filename)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(req.text)
+
+        ingester = DocumentIngester()
+        result = ingester.process_file(file_path)
+
+        manager = RAGIndexManager(db_path=db_path)
+        manager.init_db()
+        manager.insert_ingested_data(result)
+
+        return {
+            "status": "success",
+            "filename": safe_filename,
+            "mode": "direct",
+            "chunks": len(result["chunks"]),
+            "entities": len(result["entities"]),
+        }
+
+
+@app.post("/api/workspaces/{ws_id}/ingest-url")
+def ingest_url(ws_id: str, req: IngestUrlRequest, _: None = Depends(verify_api_key)) -> dict:
+    """Завантажує контент з URL та індексує його у воркспейсі."""
+    ws_path = get_workspace_path(ws_id)
+    if not os.path.exists(ws_path):
+        raise HTTPException(status_code=404, detail="Воркспейс не знайдено.")
+
+    # Завантаження контенту з URL
+    try:
+        req_obj = urllib.request.Request(req.url, headers={"User-Agent": "VaultMind/0.1"})
+        with urllib.request.urlopen(req_obj, timeout=30) as response:
+            content = response.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Не вдалося завантажити URL: {str(e)}")
+
+    # Генерація імені файлу з URL якщо не вказано
+    if not req.filename:
+        parsed = urlparse(req.url)
+        path_part = parsed.path.strip("/").replace("/", "_") or parsed.netloc
+        filename = re.sub(r'[^\w\-\.]', '_', path_part)
+        if not filename.endswith(('.md', '.txt')):
+            filename += '.md'
+    else:
+        filename = re.sub(r'[^\w\-\.]', '_', req.filename)
+        if not filename.endswith(('.md', '.txt')):
+            filename += '.md'
+
+    vault_dir = os.path.join(ws_path, "vault")
+    db_path = os.path.join(ws_path, "rag_storage.db")
+    file_path = os.path.join(vault_dir, filename)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(f"---\nsource: {req.url}\n---\n\n{content}")
+
+    ingester = DocumentIngester()
+    result = ingester.process_file(file_path)
+
+    manager = RAGIndexManager(db_path=db_path)
+    manager.init_db()
+    manager.insert_ingested_data(result)
+
+    return {
+        "status": "success",
+        "filename": filename,
+        "url": req.url,
+        "chunks": len(result["chunks"]),
+        "entities": len(result["entities"]),
+        "content_length": len(content),
+    }
+
+
+@app.get("/api/workspaces/{ws_id}/entities")
+def get_entities(ws_id: str, entity_type: str = "", limit: int = 100, _: None = Depends(verify_api_key)) -> dict:
+    """Повертає список сутностей та зв'язків графу знань воркспейсу."""
+    ws_path = get_workspace_path(ws_id)
+    if not os.path.exists(ws_path):
+        raise HTTPException(status_code=404, detail="Воркспейс не знайдено.")
+
+    db_path = os.path.join(ws_path, "rag_storage.db")
+    if not os.path.exists(db_path):
+        return {"entities": [], "relationships": [], "stats": {"total_entities": 0, "total_relationships": 0}}
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Отримання сутностей
+    if entity_type:
+        cursor.execute("SELECT id, name, type FROM entities WHERE type = ? LIMIT ?", (entity_type, limit))
+    else:
+        cursor.execute("SELECT id, name, type FROM entities LIMIT ?", (limit,))
+    entities = [{"id": row[0], "name": row[1], "type": row[2]} for row in cursor.fetchall()]
+
+    # Отримання зв'язків
+    entity_ids = [e["id"] for e in entities]
+    relationships = []
+    if entity_ids:
+        placeholders = ",".join("?" for _ in entity_ids)
+        cursor.execute(f"""
+            SELECT r.id, s.name, r.relation_type, t.name
+            FROM relationships r
+            JOIN entities s ON r.source_id = s.id
+            JOIN entities t ON r.target_id = t.id
+            WHERE r.source_id IN ({placeholders}) OR r.target_id IN ({placeholders})
+            LIMIT ?
+        """, entity_ids + entity_ids + [limit])
+        relationships = [
+            {"id": row[0], "source": row[1], "relation": row[2], "target": row[3]}
+            for row in cursor.fetchall()
+        ]
+
+    # Статистика
+    cursor.execute("SELECT COUNT(*) FROM entities")
+    total_entities = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM relationships")
+    total_relationships = cursor.fetchone()[0]
+
+    conn.close()
+
+    return {
+        "entities": entities,
+        "relationships": relationships,
+        "stats": {
+            "total_entities": total_entities,
+            "total_relationships": total_relationships,
+        }
+    }
 
 # --- OpenAI-сумісні ендпоінти ---
 

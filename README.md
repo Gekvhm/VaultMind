@@ -118,12 +118,37 @@ docker compose -f docker-compose.yml -f docker-compose.cuda.yml up -d
 | `POST` | `/api/workspaces/{id}/upload` | Upload files (drag-and-drop) |
 | `POST` | `/api/workspaces/{id}/query` | RAG query with citation |
 
+### Ingestion API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/workspaces/{id}/ingest-text` | Ingest raw text directly (JSON body) |
+| `POST` | `/api/workspaces/{id}/ingest-url` | Fetch URL content and index it |
+| `GET` | `/api/workspaces/{id}/entities` | Browse knowledge graph entities & relationships |
+
 ### OpenAI-Compatible
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/v1/chat/completions` | Chat completions (active workspace) |
 | `POST` | `/v1/chat/completions/{id}` | Chat completions (specific workspace) |
+
+### Python SDK
+
+```bash
+cd sdk/ && pip install .
+```
+
+```python
+from vaultmind import VaultMindClient
+
+vm = VaultMindClient("http://localhost:8001", api_key="vm-xxx")
+vm.create_workspace("research")
+vm.ingest_text("research", "RAG combines retrieval with generation...", filename="rag.md")
+vm.ingest_url("research", "https://example.com/article")
+result = vm.query("research", "How does hybrid search work?")
+print(result["response"])
+```
 
 ---
 
