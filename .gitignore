@@ -1,7 +1,46 @@
+# Virtual environment
 .venv/
+
+# Python bytecode
 __pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Database files
 *.db
+
+# Models (large binary files)
 models/
+
+# Test artifacts
 tests/temp_docs/
 tests/results/
+
+# macOS
 .DS_Store
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
+
+# Development artifacts
+scratch/
+my_obsidian_vault/
+
+# User data (workspace content)
+workspaces/
+raw_inputs/
+
+# IDE
+.idea/
+.vscode/
+
+# Keys & certificates
+*.pem
+*.key

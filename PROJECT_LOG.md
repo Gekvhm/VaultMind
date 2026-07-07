@@ -195,3 +195,60 @@ Description: Змінено опис та атрибут accept для поля 
 ### Next Steps
 1. Завантажити реальні інструкції та звіти у форматі `.docx` у відповідні воркспейси через оновлений веб-інтерфейс.
 2. Провести тестування з великими документами Word для перевірки логічного розбиття тексту на частини (chunking).
+
+---
+
+## Session: 2026-07-07 — Комплексний аудит готовності до публікації
+
+[2026-07-07 22:52:00] {System-Analyst} - Комплексний аудит готовності до публікації та реклами
+Modified files: (read-only аудит, жодних змін до вихідного коду)
+Motivation: Запит користувача на аналіз проекту перед публікацією на відкритому репозиторії та розміщенням реклами.
+Description: Проведено повний 4-вимірний аудит із залученням 4 паралельних дослідницьких агентів:
+
+**Результати:**
+| Напрямок | Оцінка |
+|----------|--------|
+| Безпека | 3/10 (4 CRITICAL, 6 HIGH, 7 MEDIUM) |
+| Якість коду | 3.8/10 |
+| Маркетинг | 3/10 |
+| Цінність продукту | 6.5/10 (PSF 8/10, moat 4/10) |
+| Зрілість мети | 5.0/10 (Early Alpha) |
+| **Загальна готовність** | **3.9/10 — НЕ ГОТОВИЙ** |
+
+**Ключові знахідки:**
+- CRITICAL: CORS allow_origins=["*"] + allow_credentials=True (server.py:26-32)
+- CRITICAL: Нуль автентифікації на 13 API-ендпоінтах
+- CRITICAL: GET /api/workspaces/{ws_id}/config повертає API ключі у відкритому вигляді
+- БЛОКЕР: Відсутні README.md, LICENSE, pyproject.toml
+- Стадія продукту: Early Alpha (0.2-0.3)
+- Конкуренти: AnythingLLM (54K⭐), PrivateGPT (57K⭐), Khoj (32K⭐)
+- Стратегічна позиція: "Діамант у сирцю" — унікальні KG + Auto-formatting, але слабкий moat
+
+**Артефакти створено:**
+- publication_audit_report.md — зведений звіт аудиту (затверджений користувачем)
+- product_value_analysis.md — аналіз цінності продукту та зрілості мети
+
+### Completed
+- Аудит безпеки: 4 CRITICAL, 6 HIGH, 7 MEDIUM, 3 LOW знахідки
+- Аналіз якості коду: docstrings, type hints, tests, structure, PEP 8
+- Оцінка маркетингової готовності: USP, конкурентна позиція, UX
+- Аналіз цінності продукту: PSF, Value Proposition Canvas, TAM, moat
+- Оцінка зрілості мети: vision, roadmap, feature completeness, tech debt
+- Веб-дослідження конкурентів та ринку RAG ($1.85B → $70B)
+
+### Not Completed
+- Імплементація виправлень — очікує рішення користувача
+
+### Discovered
+- Vector search через np.dot завантажує ВСІ чанки в RAM — scalability blocker при 10K+ чанків
+- system_prompt в inference.py:92 захардкоджений під "кібербезпеку та пентест" — обмежує універсальність
+- server.log (9.7KB) ймовірно вже в git history — потребує git filter-branch
+- Демо-контент у workspaces/ містить імітовані паролі та SSH ключі (credential_vault.md)
+- ACTIVE_WORKSPACE — глобальна змінна, race condition при concurrent requests
+
+### Next Steps
+1. 🔴 **День 1**: Закрити CORS, оновити .gitignore, створити LICENSE та README.md, очистити sensitive data
+2. 🔴 **День 2**: pyproject.toml, пакетна структура, logging замість print(), auth middleware
+3. 🟡 **День 3**: PDF parsing, streaming responses, configurable system prompt per workspace
+4. 🟡 **Тиждень 2**: Скріншоти/GIF демо, ребрендинг, CI/CD, тести для indexing.py/ingestion.py
+5. 🟢 **Тиждень 3**: SQLite-vec для scalability, Docker, i18n, landing page

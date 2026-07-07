@@ -1,17 +1,35 @@
-import sqlite3
-import numpy as np
+"""Модуль гібридної індексації та пошуку.
+
+Реалізує Vector + BM25 (FTS5) + Knowledge Graph з Reciprocal Rank Fusion.
+"""
+
+import logging
 import os
 import re
+import sqlite3
+
+import numpy as np
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 
+logger = logging.getLogger(__name__)
+
+
 class RAGIndexManager:
-    def __init__(self, db_path="rag_storage.db", embedding_model_path=None):
+    """Менеджер гібридного пошуку з підтримкою векторного, повнотекстового та графового пошуку."""
+
+    def __init__(self, db_path: str = "rag_storage.db", embedding_model_path: str | None = None) -> None:
+        """Ініціалізує менеджер індексації.
+
+        Args:
+            db_path: Шлях до файлу бази даних SQLite.
+            embedding_model_path: Шлях до GGUF моделі ембедінгів. Якщо None — завантажується автоматично.
+        """
         self.db_path = db_path
         self.embedding_model_path = embedding_model_path
         self.embed_model = None
         
-    def init_db(self):
+    def init_db(self) -> None:
         """Ініціалізує базу даних SQLite та створює всі необхідні таблиці."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -70,7 +88,7 @@ class RAGIndexManager:
         conn.commit()
         conn.close()
         
-    def load_embedding_model(self):
+    def load_embedding_model(self) -> None:
         """Завантажує модель ембедінгів GGUF з Hugging Face або локального шляху."""
         if self.embed_model is not None:
             return
@@ -78,14 +96,14 @@ class RAGIndexManager:
         if self.embedding_model_path is None:
             # Створюємо директорію для моделей
             os.makedirs("models", exist_ok=True)
-            print("Завантаження моделі ембедінгів nomic-embed-text-v1.5 з Hugging Face...")
+            logger.info("Завантаження моделі ембедінгів nomic-embed-text-v1.5 з Hugging Face...")
             self.embedding_model_path = hf_hub_download(
                 repo_id="nomic-ai/nomic-embed-text-v1.5-GGUF",
                 filename="nomic-embed-text-v1.5.f16.gguf",
                 local_dir="models"
             )
             
-        print(f"Ініціалізація моделі ембедінгів з {self.embedding_model_path}...")
+        logger.info("Ініціалізація моделі ембедінгів з %s...", self.embedding_model_path)
         # Запуск моделі ембедінгів з підтримкою Metal
         self.embed_model = Llama(
             model_path=self.embedding_model_path,
@@ -94,7 +112,7 @@ class RAGIndexManager:
             verbose=False
         )
 
-    def get_embedding(self, text):
+    def get_embedding(self, text: str) -> np.ndarray:
         """Генерує векторний ембедінг для тексту."""
         self.load_embedding_model()
         # nomic-embed потребує префіксу "search_document:" для документів та "search_query:" для запитів
@@ -102,14 +120,14 @@ class RAGIndexManager:
         res = self.embed_model.create_embedding(formatted_text)
         return np.array(res['data'][0]['embedding'], dtype=np.float32)
 
-    def get_query_embedding(self, text):
+    def get_query_embedding(self, text: str) -> np.ndarray:
         """Генерує векторний ембедінг для пошукового запиту."""
         self.load_embedding_model()
         formatted_text = f"search_query: {text}"
         res = self.embed_model.create_embedding(formatted_text)
         return np.array(res['data'][0]['embedding'], dtype=np.float32)
 
-    def insert_ingested_data(self, ingestion_result):
+    def insert_ingested_data(self, ingestion_result: dict) -> None:
         """Записує результати інгестії у базу даних та генерує ембедінги."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -147,7 +165,7 @@ class RAGIndexManager:
             heading = chunk["heading"]
             chunk_entities = chunk["entities"]
             
-            print(f"Індексація чанку {i+1}/{len(chunks)} (Розмір: {len(content)} символів)...")
+            logger.info("Індексація чанку %d/%d (Розмір: %d символів)...", i + 1, len(chunks), len(content))
             vector = self.get_embedding(content)
             vector_blob = vector.tobytes()
             
@@ -175,9 +193,9 @@ class RAGIndexManager:
                     
         conn.commit()
         conn.close()
-        print("Індексацію бази знань завершено успішно.")
+        logger.info("Індексацію бази знань завершено успішно.")
 
-    def search_vector(self, query_text, limit=10):
+    def search_vector(self, query_text: str, limit: int = 10) -> list[dict]:
         """Здійснює семантичний векторний пошук у базі даних SQLite через numpy."""
         query_vec = self.get_query_embedding(query_text)
         
@@ -226,7 +244,7 @@ class RAGIndexManager:
             })
         return results
 
-    def search_bm25(self, query_text, limit=10):
+    def search_bm25(self, query_text: str, limit: int = 10) -> list[dict]:
         """Швидкий повнотекстовий пошук BM25 через SQLite FTS5."""
         # Очищення запиту від спецсимволів FTS5 для безпеки
         clean_query = re.sub(r'[^\w\s]', ' ', query_text).strip()
@@ -263,7 +281,7 @@ class RAGIndexManager:
             })
         return results
 
-    def get_query_entities(self, query_text):
+    def get_query_entities(self, query_text: str) -> list[dict]:
         """Визначає сутності, присутні в запиті користувача, на основі бази знань."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -278,7 +296,7 @@ class RAGIndexManager:
                 matched_entities.append({"id": ent_id, "name": name, "type": ent_type})
         return matched_entities
 
-    def hybrid_search_rrf(self, query_text, limit=5, k=60, graph_boost=1.5):
+    def hybrid_search_rrf(self, query_text: str, limit: int = 5, k: int = 60, graph_boost: float = 1.5) -> list[dict]:
         """Гібридний пошук: злиття Vector + BM25 за методом RRF з графовим підсиленням."""
         # 1. Отримуємо результати з обох пошуковиків
         vector_res = self.search_vector(query_text, limit=limit*3)

@@ -1,0 +1,13 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[lint.isort]
+known-first-party = ["ingestion", "indexing", "inference", "formatter"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

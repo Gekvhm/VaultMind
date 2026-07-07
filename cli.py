@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
+"""CLI-інтерфейс VaultMind. Надає команди для ініціалізації, інгестії, форматування, пошуку та запуску сервера."""
 import argparse
+import logging
 import sys
 import os
 
-# Додаємо поточну директорію до шляху імпорту
+# TODO: Remove after switching to package install
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from ingestion import DocumentIngester
 from indexing import RAGIndexManager
 from inference import LLMInferenceManager
 
-def cmd_init(args):
-    print("=== Ініціалізація бази знань SQLite ===")
+logger = logging.getLogger(__name__)
+
+
+def cmd_init(args: argparse.Namespace) -> None:
+    """Ініціалізує базу даних та завантажує моделі ембедінгів."""
+    logger.info("=== Ініціалізація бази знань SQLite ===")
     manager = RAGIndexManager(db_path=args.db)
     manager.init_db()
-    print(f"Базу даних ініціалізовано за шляхом: {args.db}")
+    logger.info("Базу даних ініціалізовано за шляхом: %s", args.db)
 
-def cmd_ingest(args):
+def cmd_ingest(args: argparse.Namespace) -> None:
+    """Виконує інгестію документів з вказаної директорії у RAG-індекс."""
     if not os.path.exists(args.path):
-        print(f"Помилка: Шлях '{args.path}' не існує.")
+        logger.error("Помилка: Шлях '%s' не існує.", args.path)
         sys.exit(1)
         
-    print(f"=== Запуск інгестії даних: {args.path} ===")
+    logger.info("=== Запуск інгестії даних: %s ===", args.path)
     ingester = DocumentIngester(chunk_size=args.chunk_size, chunk_overlap=args.chunk_overlap)
     
     if os.path.isdir(args.path):
@@ -35,7 +42,10 @@ def cmd_ingest(args):
             "relations": file_res["relations"]
         }
         
-    print(f"Оброблено: {len(result['chunks'])} чанків, {len(result['entities'])} сутностей, {len(result['relations'])} зв'язків графа.")
+    logger.info(
+        "Оброблено: %d чанків, %d сутностей, %d зв'язків графа.",
+        len(result['chunks']), len(result['entities']), len(result['relations']),
+    )
     
     # Записуємо в базу знань та генеруємо вектори
     manager = RAGIndexManager(db_path=args.db)
@@ -44,14 +54,15 @@ def cmd_ingest(args):
         manager.embedding_model_path = args.embed_model
     manager.insert_ingested_data(result)
 
-def cmd_query(args):
-    print(f"=== Пошук та генерація для запиту: '{args.query}' ===")
+def cmd_query(args: argparse.Namespace) -> None:
+    """Виконує пошуковий запит до RAG-системи та генерує відповідь LLM."""
+    logger.info("=== Пошук та генерація для запиту: '%s' ===", args.query)
     manager = RAGIndexManager(db_path=args.db)
     if args.embed_model:
         manager.embedding_model_path = args.embed_model
         
     # Виконуємо гібридний пошук
-    print("Виконання гібридного пошуку (Vector + BM25 + Graph)...")
+    logger.info("Виконання гібридного пошуку (Vector + BM25 + Graph)...")
     chunks = manager.hybrid_search_rrf(args.query, limit=args.limit, graph_boost=args.graph_boost)
     
     if not chunks:
@@ -75,12 +86,13 @@ def cmd_query(args):
     print(response)
     print("=" * 60)
 
-def cmd_format(args):
+def cmd_format(args: argparse.Namespace) -> None:
+    """Автоматично структурує сирі документи через LLM у Obsidian-нотатки."""
     if not os.path.exists(args.path):
-        print(f"Помилка: Шлях '{args.path}' не існує.")
+        logger.error("Помилка: Шлях '%s' не існує.", args.path)
         sys.exit(1)
         
-    print(f"=== Запуск структурування сирих даних: {args.path} ===")
+    logger.info("=== Запуск структурування сирих даних: %s ===", args.path)
     from formatter import KnowledgeFormatter
     
     formatter = KnowledgeFormatter(db_path=args.db, llm_model_path=args.llm_model)
@@ -90,16 +102,23 @@ def cmd_format(args):
         auto_ingest=args.auto_ingest
     )
     if success:
-        print("Процес структурування та наповнення бази завершено успішно.")
+        logger.info("Процес структурування та наповнення бази завершено успішно.")
     else:
-        print("Під час структурування виникли помилки.")
+        logger.error("Під час структурування виникли помилки.")
 
-def cmd_serve(args):
-    print(f"=== Запуск RAG-сервера 'NotebookLM' на {args.host}:{args.port} ===")
+def cmd_serve(args: argparse.Namespace) -> None:
+    """Запускає FastAPI веб-сервер з UI та REST API."""
+    logger.info("=== Запуск RAG-сервера 'NotebookLM' на %s:%s ===", args.host, args.port)
     import uvicorn
     uvicorn.run("server:app", host=args.host, port=args.port, reload=args.reload)
 
-def main():
+def main() -> None:
+    """Головна точка входу CLI: парсить аргументи та делегує відповідній команді."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
     parser = argparse.ArgumentParser(
         description="Локальна RAG-система з нульовим витоком знань та Metal прискоренням"
     )

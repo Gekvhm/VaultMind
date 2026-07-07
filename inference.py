@@ -1,11 +1,20 @@
-import os
+"""Модуль LLM-інференсу. Підтримує локальні GGUF моделі через llama.cpp з Metal прискоренням та хмарні OpenAI-сумісні API."""
+
 import gc
+import logging
+import os
+
 import psutil
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 
+logger = logging.getLogger(__name__)
+
+
 class LLMInferenceManager:
-    def __init__(self, config=None, model_path=None, context_size=8192):
+    """Менеджер інференсу з підтримкою локальних та хмарних LLM провайдерів."""
+    def __init__(self, config: dict | None = None, model_path: str | None = None, context_size: int = 8192) -> None:
+        """Ініціалізує менеджер інференсу з опціональним шляхом до локальної моделі та конфігурацією хмарного провайдера."""
         self.config = config or {
             "provider": "local",
             "local_model_path": model_path,
@@ -17,13 +26,13 @@ class LLMInferenceManager:
         self.context_size = self.config.get("context_size") or context_size
         self.llm = None
         
-    def download_model(self):
+    def download_model(self) -> str:
         """Завантажує Qwen2.5-14B-Instruct-Abliterated GGUF з Hugging Face."""
         if self.model_path is not None:
             return self.model_path
             
         os.makedirs("models", exist_ok=True)
-        print("Завантаження моделі Qwen2.5-14B-Instruct-Abliterated (Q4_K_M)...")
+        logger.info("Завантаження моделі Qwen2.5-14B-Instruct-Abliterated (Q4_K_M)...")
         self.model_path = hf_hub_download(
             repo_id="mradermacher/Qwen2.5-14B-Instruct-Abliterated-GGUF",
             filename="Qwen2.5-14B-Instruct-Abliterated.Q4_K_M.gguf",
@@ -31,7 +40,7 @@ class LLMInferenceManager:
         )
         return self.model_path
 
-    def init_llm(self):
+    def init_llm(self) -> None:
         """Ініціалізує LLM з Metal-прискоренням та квантованим KV Cache (Q8_0)."""
         if self.config.get("provider", "local") == "openai":
             return
@@ -40,7 +49,7 @@ class LLMInferenceManager:
             return
             
         model_file = self.download_model()
-        print(f"Ініціалізація LLM моделі з {model_file}...")
+        logger.info("Ініціалізація LLM моделі з %s...", model_file)
         
         try:
             self.llm = Llama(
@@ -50,17 +59,17 @@ class LLMInferenceManager:
                 use_mmap=True,         # Використання memory-mapped файлів
                 verbose=False          # Приховуємо низькорівневі логи llama.cpp
             )
-        except Exception as e:
-            print(f"Помилка ініціалізації LLM: {str(e)}")
-            raise e
+        except (RuntimeError, OSError, ValueError) as e:
+            logger.error("Помилка ініціалізації LLM: %s", e)
+            raise
 
-    def print_memory_usage(self):
-        """Виводит поточне споживання пам'яті системою."""
+    def print_memory_usage(self) -> None:
+        """Виводить поточне споживання пам'яті системою."""
         process = psutil.Process(os.getpid())
         ram_usage = process.memory_info().rss / (1024 * 1024)
-        print(f"[Memory Monitor] Споживання RAM процесом Python: {ram_usage:.2f} MB")
+        logger.debug("[Memory Monitor] Споживання RAM процесом Python: %.2f MB", ram_usage)
 
-    def generate_response(self, query, retrieved_chunks, rrf_threshold=None):
+    def generate_response(self, query: str, retrieved_chunks: list[dict], rrf_threshold: float | None = None) -> str:
         """Генерує відповідь за допомогою LLM на основі контексту з логічним міркуванням."""
         if rrf_threshold is None:
             rrf_threshold = self.config.get("rrf_threshold", 0.015)
@@ -73,7 +82,7 @@ class LLMInferenceManager:
         else:
             best_score = retrieved_chunks[0]["score"]
             if best_score < rrf_threshold:
-                print(f"[Strict Grounding] Найкращий RRF бал ({best_score:.4f}) нижчий за поріг ({rrf_threshold}). Перехід до загального логічного аналізу.")
+                logger.info("[Strict Grounding] Найкращий RRF бал (%.4f) нижчий за поріг (%s). Перехід до загального логічного аналізу.", best_score, rrf_threshold)
                 has_context = False
             
         # 2. Підготовка контексту
@@ -110,7 +119,7 @@ class LLMInferenceManager:
         if provider == "local":
             self.init_llm()
             self.print_memory_usage()
-            print("Генерація відповіді локальною LLM (Metal API)...")
+            logger.info("Генерація відповіді локальною LLM (Metal API)...")
             try:
                 response = self.llm.create_chat_completion(
                     messages=messages,
@@ -121,7 +130,7 @@ class LLMInferenceManager:
             finally:
                 gc.collect()
         else:
-            print(f"Генерація відповіді через Cloud API ({self.config.get('openai_model_name')})...")
+            logger.info("Генерація відповіді через Cloud API (%s)...", self.config.get('openai_model_name'))
             from openai import OpenAI
             client = OpenAI(
                 api_key=self.config.get("openai_api_key"),
@@ -139,7 +148,7 @@ class LLMInferenceManager:
             return "[NO_CONTEXT_FOUND]"
         return ans
 
-    def generate_structured_note(self, raw_text, concepts):
+    def generate_structured_note(self, raw_text: str, concepts: set[str] | list[str] | None = None) -> str:
         """Перетворює сирий текст на структуровану нотатку Markdown з авто-лінкуванням."""
         concepts_str = ", ".join([f'"{c}"' for c in concepts]) if concepts else "немає"
         
@@ -188,7 +197,7 @@ type: concept
         if provider == "local":
             self.init_llm()
             self.print_memory_usage()
-            print("Форматування тексту за допомогою LLM (Metal API)...")
+            logger.info("Форматування тексту за допомогою LLM (Metal API)...")
             try:
                 response = self.llm.create_chat_completion(
                     messages=messages,
@@ -199,7 +208,7 @@ type: concept
             finally:
                 gc.collect()
         else:
-            print(f"Форматування тексту через Cloud API ({self.config.get('openai_model_name')})...")
+            logger.info("Форматування тексту через Cloud API (%s)...", self.config.get('openai_model_name'))
             from openai import OpenAI
             client = OpenAI(
                 api_key=self.config.get("openai_api_key"),

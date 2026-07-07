@@ -1,13 +1,16 @@
+"""FastAPI сервер VaultMind. Надає REST API, OpenAI-сумісні ендпоінти та веб-інтерфейс для управління воркспейсами."""
+import json
+import logging
 import os
+import re
 import shutil
 import sqlite3
-import json
+
 import psutil
-import re
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -15,6 +18,8 @@ from ingestion import DocumentIngester
 from indexing import RAGIndexManager
 from inference import LLMInferenceManager
 from formatter import KnowledgeFormatter
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Local NotebookLM API",
@@ -38,7 +43,8 @@ os.makedirs(WORKSPACES_DIR, exist_ok=True)
 ACTIVE_WORKSPACE = "default"
 
 # Допоміжна функція для ініціалізації default воркспейсу при старті
-def ensure_default_workspace():
+def ensure_default_workspace() -> None:
+    """Створює воркспейс 'default' якщо він не існує."""
     global ACTIVE_WORKSPACE
     default_path = os.path.join(WORKSPACES_DIR, "default")
     if not os.path.exists(default_path):
@@ -62,15 +68,17 @@ def ensure_default_workspace():
             
         manager = RAGIndexManager(db_path=os.path.join(default_path, "rag_storage.db"))
         manager.init_db()
-        print("Default воркспейс успішно ініціалізовано.")
+        logger.info("Default воркспейс успішно ініціалізовано.")
 
 ensure_default_workspace()
 
 # --- Моделі запитів Pydantic ---
 class WorkspaceCreate(BaseModel):
+    """Модель запиту на створення нового воркспейсу."""
     name: str
 
 class SettingsUpdate(BaseModel):
+    """Модель запиту на оновлення налаштувань воркспейсу."""
     provider: str
     local_model_path: Optional[str] = ""
     openai_api_key: Optional[str] = ""
@@ -80,14 +88,17 @@ class SettingsUpdate(BaseModel):
     rrf_threshold: Optional[float] = 0.015
 
 class QueryRequest(BaseModel):
+    """Модель запиту для RAG-пошуку."""
     query: str
 
 # Моделі OpenAI-сумісних запитів
 class ChatMessage(BaseModel):
+    """Повідомлення в форматі OpenAI Chat API."""
     role: str
     content: str
 
 class ChatCompletionRequest(BaseModel):
+    """Запит до OpenAI-сумісного ендпоінту чат-комплішенів."""
     model: str
     messages: List[ChatMessage]
     temperature: Optional[float] = 0.0
@@ -95,11 +106,13 @@ class ChatCompletionRequest(BaseModel):
 
 # --- Допоміжні функції воркспейсів ---
 def get_workspace_path(ws_id: str) -> str:
+    """Повертає безпечний шлях до директорії воркспейсу."""
     # Захист від Path Traversal
     safe_id = re.sub(r'[^\w\-]', '_', ws_id)
     return os.path.join(WORKSPACES_DIR, safe_id)
 
 def load_workspace_config(ws_id: str) -> dict:
+    """Завантажує конфігурацію воркспейсу з config.json."""
     ws_path = get_workspace_path(ws_id)
     cfg_file = os.path.join(ws_path, "config.json")
     if not os.path.exists(cfg_file):
@@ -110,7 +123,7 @@ def load_workspace_config(ws_id: str) -> dict:
 # --- Ендпоінти управління воркспейсами ---
 
 @app.get("/api/workspaces")
-def list_workspaces():
+def list_workspaces() -> dict:
     """Повертає список усіх наявних воркспейсів."""
     ensure_default_workspace()
     workspaces = []
@@ -121,7 +134,7 @@ def list_workspaces():
     return {"workspaces": sorted(workspaces), "active_workspace": ACTIVE_WORKSPACE}
 
 @app.post("/api/active_workspace")
-def set_active_workspace(ws: WorkspaceCreate):
+def set_active_workspace(ws: WorkspaceCreate) -> dict:
     """Встановлює активний воркспейс по замовчуванню."""
     global ACTIVE_WORKSPACE
     ws_path = get_workspace_path(ws.name)
@@ -131,7 +144,7 @@ def set_active_workspace(ws: WorkspaceCreate):
     return {"status": "success", "active_workspace": ACTIVE_WORKSPACE}
 
 @app.post("/api/workspaces")
-def create_workspace(ws: WorkspaceCreate):
+def create_workspace(ws: WorkspaceCreate) -> dict:
     """Створює новий воркспейс та ініціалізує його структуру."""
     if not ws.name.strip():
         raise HTTPException(status_code=400, detail="Назва воркспейсу не може бути порожньою.")
@@ -169,13 +182,13 @@ def create_workspace(ws: WorkspaceCreate):
         ACTIVE_WORKSPACE = ws_id
         
         return {"status": "success", "workspace_id": ws_id}
-    except Exception as e:
+    except (OSError, sqlite3.Error) as e:
         if os.path.exists(ws_path):
             shutil.rmtree(ws_path)
         raise HTTPException(status_code=500, detail=f"Не вдалося створити воркспейс: {str(e)}")
 
 @app.delete("/api/workspaces/{ws_id}")
-def delete_workspace(ws_id: str):
+def delete_workspace(ws_id: str) -> dict:
     """Повністю видаляє воркспейс та його дані."""
     if ws_id == "default":
         raise HTTPException(status_code=400, detail="Неможливо видалити воркспейс по замовчуванню (default).")
@@ -190,13 +203,13 @@ def delete_workspace(ws_id: str):
         if ACTIVE_WORKSPACE == ws_id:
             ACTIVE_WORKSPACE = "default"
         return {"status": "success"}
-    except Exception as e:
+    except (OSError, PermissionError) as e:
         raise HTTPException(status_code=500, detail=f"Помилка при видаленні: {str(e)}")
 
 # --- Ендпоінти роботи всередині воркспейсу ---
 
 @app.get("/api/workspaces/{ws_id}/status")
-def get_workspace_status(ws_id: str):
+def get_workspace_status(ws_id: str) -> dict:
     """Повертає статистику бази знань та параметри воркспейсу."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
@@ -224,8 +237,8 @@ def get_workspace_status(ws_id: str):
                 if r[0]:
                     sources.add(os.path.basename(r[0]))
             conn.close()
-        except Exception as e:
-            print(f"Error querying SQLite stats: {e}")
+        except sqlite3.Error as e:
+            logger.error("Error querying SQLite stats: %s", e)
             
     process = psutil.Process(os.getpid())
     ram_mb = process.memory_info().rss / (1024 * 1024)
@@ -248,12 +261,12 @@ def get_workspace_status(ws_id: str):
     }
 
 @app.get("/api/workspaces/{ws_id}/config")
-def get_config(ws_id: str):
+def get_config(ws_id: str) -> dict:
     """Повертає конфігурацію воркспейсу."""
     return load_workspace_config(ws_id)
 
 @app.post("/api/workspaces/{ws_id}/settings")
-def update_settings(ws_id: str, settings: SettingsUpdate):
+def update_settings(ws_id: str, settings: SettingsUpdate) -> dict:
     """Оновлює конфігурацію воркспейсу."""
     ws_path = get_workspace_path(ws_id)
     cfg_file = os.path.join(ws_path, "config.json")
@@ -274,11 +287,11 @@ def update_settings(ws_id: str, settings: SettingsUpdate):
         with open(cfg_file, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
         return {"status": "success", "config": config}
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=500, detail=f"Помилка при оновленні налаштувань: {str(e)}")
 
 @app.get("/api/workspaces/{ws_id}/sources")
-def list_sources(ws_id: str):
+def list_sources(ws_id: str) -> dict:
     """Повертає список усіх проіндексованих файлів у воркспейсі."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
@@ -303,13 +316,13 @@ def list_sources(ws_id: str):
                     chunks_c = cursor.execute("SELECT count(*) FROM chunks WHERE file_path = ?", (r[0],)).fetchone()[0]
                     sources.append({"name": file_name, "path": r[0], "chunks_count": chunks_c})
             conn.close()
-        except Exception as e:
-            print(f"Error querying SQLite sources: {e}")
+        except sqlite3.Error as e:
+            logger.error("Error querying SQLite sources: %s", e)
             
     return {"sources": sources}
 
 @app.delete("/api/workspaces/{ws_id}/sources/{source_name}")
-def delete_source(ws_id: str, source_name: str):
+def delete_source(ws_id: str, source_name: str) -> dict:
     """Видаляє джерело з Obsidian Vault та очищує його чанки й сутності з БД."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
@@ -355,22 +368,22 @@ def delete_source(ws_id: str, source_name: str):
                 
             conn.commit()
             conn.close()
-            print(f"Базу SQLite очищено від джерела {source_name}.")
-        except Exception as e:
-            print(f"[Error] Очищення SQLite не вдалося: {e}")
+            logger.info("Базу SQLite очищено від джерела %s.", source_name)
+        except sqlite3.Error as e:
+            logger.error("Очищення SQLite не вдалося: %s", e)
             
     # 2. Видалення файлу з диска
     if os.path.exists(target_md_path):
         try:
             os.remove(target_md_path)
             return {"status": "success", "deleted_file": target_md_path}
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             raise HTTPException(status_code=500, detail=f"Помилка при видаленні файлу: {str(e)}")
             
     return {"status": "success", "message": "Дані вилучено з бази, файл не був знайдений на диску."}
 
 @app.post("/api/workspaces/{ws_id}/upload")
-async def upload_files(ws_id: str, files: List[UploadFile] = File(...)):
+async def upload_files(ws_id: str, files: List[UploadFile] = File(...)) -> dict:
     """Завантажує сирі файли у воркспейс, структурує їх та автоматично індексує."""
     ws_path = get_workspace_path(ws_id)
     if not os.path.exists(ws_path):
@@ -390,7 +403,7 @@ async def upload_files(ws_id: str, files: List[UploadFile] = File(...)):
                 content = await file.read()
                 f.write(content)
             saved_paths.append(dest_path)
-        except Exception as e:
+        except (OSError, UnicodeDecodeError) as e:
             raise HTTPException(status_code=500, detail=f"Не вдалося зберегти файл {file.filename}: {str(e)}")
             
     # Запуск конвеєру структурування KnowledgeFormatter
@@ -410,7 +423,7 @@ async def upload_files(ws_id: str, files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=500, detail=f"Помилка конвеєра структурування: {str(e)}")
 
 @app.post("/api/workspaces/{ws_id}/query")
-def query_workspace(ws_id: str, req: QueryRequest):
+def query_workspace(ws_id: str, req: QueryRequest) -> dict:
     """Пошук фактів та генерація відповіді в межах конкретного воркспейсу."""
     ws_path = get_workspace_path(ws_id)
     if not os.path.exists(ws_path):
@@ -442,6 +455,7 @@ def query_workspace(ws_id: str, req: QueryRequest):
 # --- OpenAI-сумісні ендпоінти ---
 
 def run_rag_inference(ws_id: str, user_query: str) -> str:
+    """Виконує повний RAG-пайплайн: пошук контексту та генерацію відповіді LLM."""
     ws_path = get_workspace_path(ws_id)
     db_path = os.path.join(ws_path, "rag_storage.db")
     config = load_workspace_config(ws_id)
@@ -453,13 +467,13 @@ def run_rag_inference(ws_id: str, user_query: str) -> str:
     return inference.generate_response(user_query, chunks)
 
 @app.post("/v1/chat/completions")
-def openai_chat_completions_active(req: ChatCompletionRequest):
+def openai_chat_completions_active(req: ChatCompletionRequest) -> dict:
     """OpenAI-сумісний інтерфейс RAG для АКТИВНОГО воркспейсу."""
     global ACTIVE_WORKSPACE
     ensure_default_workspace()
     user_query = req.messages[-1].content
     
-    print(f"[API OpenAI] Отримано запит до активного воркспейсу '{ACTIVE_WORKSPACE}'")
+    logger.info("[API OpenAI] Отримано запит до активного воркспейсу '%s'", ACTIVE_WORKSPACE)
     answer = run_rag_inference(ACTIVE_WORKSPACE, user_query)
     
     return {
@@ -478,11 +492,11 @@ def openai_chat_completions_active(req: ChatCompletionRequest):
     }
 
 @app.post("/workspaces/{ws_id}/v1/chat/completions")
-def openai_chat_completions_specific(ws_id: str, req: ChatCompletionRequest):
+def openai_chat_completions_specific(ws_id: str, req: ChatCompletionRequest) -> dict:
     """OpenAI-сумісний інтерфейс RAG для КОНКРЕТНОГО воркспейсу."""
     user_query = req.messages[-1].content
     
-    print(f"[API OpenAI] Отримано запит до конкретного воркспейсу '{ws_id}'")
+    logger.info("[API OpenAI] Отримано запит до конкретного воркспейсу '%s'", ws_id)
     answer = run_rag_inference(ws_id, user_query)
     
     return {
@@ -502,7 +516,8 @@ def openai_chat_completions_specific(ws_id: str, req: ChatCompletionRequest):
 
 # Маршрутизація UI (Static Files)
 @app.get("/", response_class=HTMLResponse)
-def read_root():
+def read_root() -> HTMLResponse:
+    """Повертає головну HTML-сторінку веб-інтерфейсу."""
     index_html_path = "templates/index.html"
     if os.path.exists(index_html_path):
         with open(index_html_path, "r", encoding="utf-8") as f:

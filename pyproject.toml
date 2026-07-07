@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "vaultmind"
+version = "0.1.0"
+description = "Privacy-first local RAG system with Knowledge Graph for macOS Apple Silicon"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "VaultMind Contributors"}
+]
+keywords = ["rag", "llm", "local", "knowledge-graph", "apple-silicon", "obsidian", "privacy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.26.4",
+    "huggingface-hub>=0.23.0",
+    # llama-cpp-python must be compiled from source with Metal support:
+    #   CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python --no-binary llama-cpp-python
+    "llama-cpp-python>=0.2.76",
+    "psutil>=5.9.8",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.1",
+    "python-multipart>=0.0.9",
+    "python-docx>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.4.0",
+]
+cloud = [
+    "openai>=1.30.0",
+]
+
+[project.scripts]
+vaultmind = "cli:main"
+
+[project.urls]
+Homepage = "https://github.com/YOUR_USERNAME/vaultmind"
+Repository = "https://github.com/YOUR_USERNAME/vaultmind"
+Issues = "https://github.com/YOUR_USERNAME/vaultmind/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]

@@ -1,8 +1,25 @@
+"""Модуль парсингу та інгестії документів.
+
+Підтримує Markdown, TXT та DOCX формати з витяганням сутностей та чанкінгом.
+"""
+
+import logging
 import os
 import re
 
+logger = logging.getLogger(__name__)
+
+
 class DocumentIngester:
-    def __init__(self, chunk_size=1000, chunk_overlap=200):
+    """Парсер документів з витяганням структурних сутностей та ковзним чанкінгом."""
+
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
+        """Ініціалізує парсер документів.
+
+        Args:
+            chunk_size: Розмір чанку в символах.
+            chunk_overlap: Перекриття між сусідніми чанками в символах.
+        """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         # Регулярні вирази для Obsidian вікі-посилань, тегів та жирного тексту
@@ -10,7 +27,7 @@ class DocumentIngester:
         self.tag_pattern = re.compile(r'#([a-zA-Z0-9_\-/]+)')
         self.bold_pattern = re.compile(r'\*\*([^*]+)\*\*')
 
-    def clean_frontmatter(self, text):
+    def clean_frontmatter(self, text: str) -> tuple[str, dict]:
         """Видаляє YAML frontmatter з початку файлу, але повертає його метадані."""
         meta = {}
         if text.startswith('---'):
@@ -26,7 +43,7 @@ class DocumentIngester:
                 return content_text.strip(), meta
         return text, meta
 
-    def extract_structural_entities(self, text, file_name):
+    def extract_structural_entities(self, text: str, file_name: str) -> tuple[list[tuple[str, str]], list[tuple[str, str, str]]]:
         """Вилучає сутності та зв'язки на основі структури документа."""
         entities = []
         relations = []
@@ -60,7 +77,7 @@ class DocumentIngester:
 
         return list(set(entities)), list(set(relations))
 
-    def chunk_text(self, text, file_path, base_entities, base_relations):
+    def chunk_text(self, text: str, file_path: str, base_entities: list[tuple[str, str]], base_relations: list[tuple[str, str, str]]) -> list[dict]:
         """Розбиває текст на чанки з ковзним вікном та прив'язкою сутностей."""
         chunks = []
         text_len = len(text)
@@ -133,7 +150,7 @@ class DocumentIngester:
                 
         return chunks
 
-    def process_file(self, file_path):
+    def process_file(self, file_path: str) -> dict:
         """Зчитує та обробляє один файл, повертаючи чанки та графові зв'язки."""
         with open(file_path, 'r', encoding='utf-8') as f:
             raw_content = f.read()
@@ -157,7 +174,7 @@ class DocumentIngester:
             "relations": base_relations
         }
 
-    def process_directory(self, dir_path):
+    def process_directory(self, dir_path: str) -> dict:
         """Обробляє всі markdown та текстові файли в директорії."""
         all_chunks = []
         all_entities = []
@@ -172,8 +189,8 @@ class DocumentIngester:
                         all_chunks.extend(result["chunks"])
                         all_entities.extend(result["entities"])
                         all_relations.extend(result["relations"])
-                    except Exception as e:
-                        print(f"Помилка обробки файлу {file_path}: {str(e)}")
+                    except (OSError, UnicodeDecodeError) as e:
+                        logger.error("Помилка обробки файлу %s: %s", file_path, e)
                         
         # Очищення від дублікатів сутностей та зв'язків
         unique_entities = list(set(all_entities))
