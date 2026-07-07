@@ -7,6 +7,10 @@
 
 **Privacy-first local RAG system with Knowledge Graph for macOS Apple Silicon.** Your documents never leave your Mac. Hybrid search combines Vector embeddings, BM25 full-text, and Knowledge Graph with Reciprocal Rank Fusion for precise, citation-backed answers.
 
+<p align="center">
+  <img src="docs/images/vaultmind-hero.jpg" alt="VaultMind Web UI" width="800">
+</p>
+
 ---
 
 ## ✨ Key Features
@@ -64,6 +68,10 @@ open http://localhost:8001
 > **Note:** First run downloads ~2.2 GB of models (Qwen2.5-3B + nomic-embed-text) and compiles llama.cpp with Metal support. Requires Xcode Command Line Tools.
 
 ---
+
+<p align="center">
+  <img src="docs/images/vaultmind-cli.jpg" alt="VaultMind CLI" width="700">
+</p>
 
 ## 💻 CLI Reference
 
